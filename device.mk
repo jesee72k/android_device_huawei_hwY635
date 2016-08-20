@@ -242,15 +242,6 @@ PRODUCT_PACKAGES += \
     ft5x06_ts.kl \
     gpio-keys.kl
 
-# Keyhandler/Gestures
-PRODUCT_PACKAGES += \
-    com.cyanogenmod.keyhandler
-
-PRODUCT_SYSTEM_SERVER_JARS += com.cyanogenmod.keyhandler
-
-# never dexopt the keyhandler
-$(call add-product-dex-preopt-module-config,com.cyanogenmod.keyhandler,disable)
-
 # Art
 PRODUCT_PROPERTY_OVERRIDES += \
     dalvik.vm.dex2oat-swap=false \
