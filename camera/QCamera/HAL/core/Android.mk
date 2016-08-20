@@ -93,7 +93,7 @@ LOCAL_C_INCLUDES := \
         $(LOCAL_PATH)/../../stack/mm-jpeg-interface/inc \
         $(LOCAL_PATH)/../../../ \
         $(TARGET_OUT_INTERMEDIATES)/include/mm-camera-interface \
-        $(TARGET_OUT_INTERMEDIATES)/include/mm-jpeg-interface
+#       $(TARGET_OUT_INTERMEDIATES)/include/mm-jpeg-interface\
 
 # may need remove this includes
 LOCAL_C_INCLUDES += $(TARGET_OUT_HEADERS)/mm-camera

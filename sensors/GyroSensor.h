@@ -24,25 +24,26 @@
 
 #include "SensorBase.h"
 #include "InputEventReader.h"
+#include "NativeSensorManager.h"
 
 /*****************************************************************************/
 
 struct input_event;
 
 class GyroSensor : public SensorBase {
-	int mEnabled;
 	InputEventCircularReader mInputReader;
 	sensors_event_t mPendingEvent;
+	sensor_t mSensor;
 	bool mHasPendingEvent;
-	char input_sysfs_path[PATH_MAX];
-	int input_sysfs_path_len;
 	int64_t mEnabledTime;
 
 	int setInitialState();
+	int read_dynamic_calibrate_params(struct sensor_t *sensor);
 
 public:
 	GyroSensor();
 	GyroSensor(char *name);
+	GyroSensor(struct SensorContext *context);
 	virtual ~GyroSensor();
 	virtual int readEvents(sensors_event_t* data, int count);
 	virtual bool hasPendingEvents() const;

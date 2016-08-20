@@ -16,10 +16,8 @@
 
 LOCAL_PATH := $(call my-dir)
 
-ifeq ($(TARGET_DEVICE),hwY635)
+ifneq ($(filter hwY635, $(TARGET_DEVICE)),)
 
 include $(call all-makefiles-under,$(LOCAL_PATH))
-
-include $(CLEAR_VARS)
 
 endif

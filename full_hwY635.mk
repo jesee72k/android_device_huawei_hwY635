@@ -17,8 +17,11 @@
 # Inherit from those products. Most specific first.
 $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 
+# Include all languages
+$(call inherit-product, $(SRC_TARGET_DIR)/product/languages_full.mk)
+
 # Inherit from hwY635 device
-$(call inherit-product, device/huawei/hwY635/hwY635.mk)
+$(call inherit-product, device/huawei/hwY635/device.mk)
 
 # Device identifier. This must come after all inclusions
 PRODUCT_NAME := full_hwY635

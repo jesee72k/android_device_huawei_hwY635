@@ -24,18 +24,16 @@
 
 #include "SensorBase.h"
 #include "InputEventReader.h"
+#include "NativeSensorManager.h"
 
 /*****************************************************************************/
 
 struct input_event;
 
 class AccelSensor : public SensorBase {
-	int mEnabled;
 	InputEventCircularReader mInputReader;
 	sensors_event_t mPendingEvent;
 	bool mHasPendingEvent;
-	char input_sysfs_path[PATH_MAX];
-	int input_sysfs_path_len;
 	int64_t mEnabledTime;
 
 	int setInitialState();
@@ -43,11 +41,15 @@ class AccelSensor : public SensorBase {
 public:
 			AccelSensor();
 			AccelSensor(char *name);
+			AccelSensor(struct SensorContext *context);
 	virtual ~AccelSensor();
 	virtual int readEvents(sensors_event_t* data, int count);
 	virtual bool hasPendingEvents() const;
 	virtual int setDelay(int32_t handle, int64_t ns);
 	virtual int enable(int32_t handle, int enabled);
+	virtual int calibrate(int32_t handle, struct cal_cmd_t *para,
+					struct cal_result_t *cal_result);
+	virtual int initCalibrate(int32_t handle, struct cal_result_t *cal_result);
 };
 
 /*****************************************************************************/

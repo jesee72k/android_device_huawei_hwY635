@@ -30,21 +30,25 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef _SENSOR_CALIBRATION_MANAGER_H
 #define _SENSOR_CALIBRATION_MANAGER_H
 
+#include <utils/Singleton.h>
 #include "CalibrationModule.h"
+
+using namespace android;
 
 #define MAX_CAL_LIBS	32
 #define MAX_CAL_CFG_LEN	1024
 
 /* Calibration library config files */
 #define CAL_LIB_CFG_PATH	"/system/vendor/etc/calmodule.cfg"
-#define DEFAULT_CAL_LIB		"/system/vendor/lib/libcalmodule_common.so"
+#define DEFAULT_CAL_LIB		"libcalmodule_common.so"
+#if defined(__LP64__)
+#define CAL_LIB_PATH	"/system/vendor/lib64/"
+#else
+#define CAL_LIB_PATH	"/system/vendor/lib/"
+#endif
 
-class CalibrationManager {
+class CalibrationManager : public Singleton<CalibrationManager> {
 	public:
-		/* Get the default Calibration Manager. Create one if not exist */
-		static CalibrationManager* defaultCalibrationManager();
-		/* Helper function to convert sensor type to common sensor name */
-		static const char* type_to_name(int type);
 		/* Get the whole algo list provided by the calibration library */
 		const sensor_cal_algo_t** getCalAlgoList();
 		/* Retrive a compatible calibration algo for sensor specified by t */
@@ -53,8 +57,7 @@ class CalibrationManager {
 		void dump();
 		~CalibrationManager();
 	private:
-		/* Only one CalibrationManager */
-		static CalibrationManager *self;
+		friend class Singleton<CalibrationManager>;
 		/* Check if the algo provided by list is compatible */
 		static int check_algo(const sensor_cal_algo_t *list);
 		CalibrationManager();

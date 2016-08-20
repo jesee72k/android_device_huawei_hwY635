@@ -24,18 +24,16 @@
 
 #include "SensorBase.h"
 #include "InputEventReader.h"
+#include "NativeSensorManager.h"
 
 /*****************************************************************************/
 
 struct input_event;
 
 class PressureSensor : public SensorBase {
-	int mEnabled;
 	InputEventCircularReader mInputReader;
 	sensors_event_t mPendingEvent;
 	bool mHasPendingEvent;
-	char input_sysfs_path[PATH_MAX];
-	int input_sysfs_path_len;
 	int64_t mEnabledTime;
 
 	int setInitialState();
@@ -43,6 +41,7 @@ class PressureSensor : public SensorBase {
 public:
 	PressureSensor();
 	PressureSensor(char *name);
+	PressureSensor(struct SensorContext *context);
 	virtual ~PressureSensor();
 	virtual int readEvents(sensors_event_t* data, int count);
 	virtual bool hasPendingEvents() const;

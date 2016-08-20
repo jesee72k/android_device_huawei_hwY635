@@ -34,7 +34,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <dirent.h>
 #include <sys/select.h>
 #include <cutils/log.h>
-
+#include <cutils/properties.h>
 #include "CompassSensor.h"
 #include "sensors.h"
 
@@ -52,35 +52,31 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // conversion of magnetic data to uT units
 #define CONVERT_MAG				(1.0f/16.0f)
+#define CALIBRATE_ERROR_MAGIC		0.000314
 
 /*****************************************************************************/
-CompassSensor::CompassSensor(char* name, sensor_t* sensor_info /* = NULL */)
-	: SensorBase(NULL, "compass", sensor_info),
-	  mEnabled(0),
+CompassSensor::CompassSensor(struct SensorContext *context)
+	: SensorBase(NULL, NULL, context),
 	  mInputReader(4),
 	  mHasPendingEvent(false),
 	  mEnabledTime(0),
 	  res(CONVERT_MAG)
 {
+	int handle = -1;
+
+	res = context->sensor->resolution;
+
 	memset(mPendingEvent.data, 0, sizeof(mPendingEvent.data));
 	mPendingEvent.version = sizeof(sensors_event_t);
-	mPendingEvent.sensor = SENSORS_MAGNETIC_FIELD_HANDLE;
+	mPendingEvent.sensor = context->sensor->handle;
 	mPendingEvent.type = SENSOR_TYPE_MAGNETIC_FIELD;
 	mPendingEvent.magnetic.status = SENSOR_STATUS_UNRELIABLE;
 
-	if (sensor_info != NULL) {
-		res = sensor_info->resolution;
-	}
+	data_fd = context->data_fd;
+	strlcpy(input_sysfs_path, context->enable_path, sizeof(input_sysfs_path));
+	input_sysfs_path_len = strlen(input_sysfs_path);
 
-	if (data_fd) {
-		strlcpy(input_sysfs_path, SYSFS_CLASS, sizeof(input_sysfs_path));
-		strlcat(input_sysfs_path, "/", sizeof(input_sysfs_path));
-		strlcat(input_sysfs_path, name, sizeof(input_sysfs_path));
-		strlcat(input_sysfs_path, "/", sizeof(input_sysfs_path));
-		input_sysfs_path_len = strlen(input_sysfs_path);
-		ALOGI("The magnetic sensor path is %s",input_sysfs_path);
-		enable(0, 1);
-	}
+	enable(0, 1);
 }
 
 CompassSensor::~CompassSensor() {
@@ -91,8 +87,27 @@ CompassSensor::~CompassSensor() {
 
 int CompassSensor::enable(int32_t, int en) {
 	int flags = en ? 1 : 0;
+	compass_algo_args arg;
+	arg.common.enable = flags;
+	char propBuf[PROPERTY_VALUE_MAX];
+
+	property_get("sensors.compass.loopback", propBuf, "0");
+	if (strcmp(propBuf, "1") == 0) {
+		ALOGE("sensors.compass.loopback is set");
+		mEnabled = flags;
+		mEnabledTime = 0;
+		return 0;
+	}
+
 	if (flags != mEnabled) {
 		int fd;
+
+		if ((algo != NULL) && (algo->methods->config != NULL)) {
+			if (algo->methods->config(CMD_ENABLE, (sensor_algo_args*)&arg)) {
+				ALOGW("Calling enable config failed for compass");
+			}
+		}
+
 		strlcpy(&input_sysfs_path[input_sysfs_path_len],
 				SYSFS_ENABLE, SYSFS_MAXLEN);
 		fd = open(input_sysfs_path, O_RDWR);
@@ -118,19 +133,34 @@ int CompassSensor::enable(int32_t, int en) {
 }
 
 bool CompassSensor::hasPendingEvents() const {
-	return mHasPendingEvent;
+	return mHasPendingEvent || mHasPendingMetadata;
 }
 
-int CompassSensor::setDelay(int32_t handle, int64_t delay_ns)
+int CompassSensor::setDelay(int32_t, int64_t delay_ns)
 {
 	int fd;
 	int delay_ms = delay_ns / 1000000;
+	compass_algo_args arg;
+	arg.common.delay_ms = delay_ms;
+	char propBuf[PROPERTY_VALUE_MAX];
+	property_get("sensors.compass.loopback", propBuf, "0");
+	if (strcmp(propBuf, "1") == 0) {
+		ALOGE("sensors.compass.loopback is set");
+		return 0;
+	}
+
+	if ((algo != NULL) && (algo->methods->config != NULL)) {
+		if (algo->methods->config(CMD_DELAY, (sensor_algo_args*)&arg)) {
+			ALOGW("Calling delay config failed for compass");
+		}
+	}
+
 	strlcpy(&input_sysfs_path[input_sysfs_path_len],
 			SYSFS_POLL_DELAY, SYSFS_MAXLEN);
 	fd = open(input_sysfs_path, O_RDWR);
 	if (fd >= 0) {
 		char buf[80];
-		sprintf(buf, "%d", delay_ms);
+		snprintf(buf, sizeof(buf), "%d", delay_ms);
 		write(fd, buf, strlen(buf)+1);
 		close(fd);
 		return 0;
@@ -150,13 +180,20 @@ int CompassSensor::readEvents(sensors_event_t* data, int count)
 		return mEnabled ? 1 : 0;
 	}
 
+	if (mHasPendingMetadata) {
+		mHasPendingMetadata--;
+		meta_data.timestamp = getTimestamp();
+		*data = meta_data;
+		return mEnabled ? 1 : 0;
+	}
+
 	ssize_t n = mInputReader.fill(data_fd);
 	if (n < 0)
 		return n;
 
 	int numEventReceived = 0;
 	input_event const* event;
-	sensors_vec_t raw, result;
+	sensors_event_t raw, result;
 
 #if FETCH_FULL_EVENT_BEFORE_RETURN
 again:
@@ -173,35 +210,58 @@ again:
 				mPendingEvent.magnetic.z = value * res;
 			}
 		} else if (type == EV_SYN) {
-			mPendingEvent.timestamp = timevalToNano(event->time);
-			if (mEnabled) {
-				if (mPendingEvent.timestamp >= mEnabledTime) {
-					raw.x = mPendingEvent.magnetic.x;
-					raw.y = mPendingEvent.magnetic.y;
-					raw.z = mPendingEvent.magnetic.z;
-					raw.status = SENSOR_STATUS_UNRELIABLE;
-					if (algo != NULL) {
-						if (algo->methods->convert(&raw, &result, NULL)) {
-							ALOGE("Calibration failed.");
-							result.x = 0;
-							result.y = 0;
-							result.z = 0;
-							result.status = 0;
-						}
-					} else {
-						result = raw;
+			switch (event->code) {
+				case SYN_TIME_SEC:
+					mUseAbsTimeStamp = true;
+					report_time = event->value*1000000000LL;
+					break;
+				case SYN_TIME_NSEC:
+					mUseAbsTimeStamp = true;
+					mPendingEvent.timestamp = report_time+event->value;
+					break;
+				case SYN_REPORT:
+					if (mUseAbsTimeStamp != true) {
+						mPendingEvent.timestamp = timevalToNano(event->time);
 					}
+					if (mEnabled) {
+						raw = mPendingEvent;
 
-					*data = mPendingEvent;
-					data->magnetic.x = result.x;
-					data->magnetic.y = result.y;
-					data->magnetic.z = result.z;
-					data->magnetic.status = result.status;
+						if (algo != NULL) {
+							if (algo->methods->convert(&raw, &result, NULL)) {
+								ALOGE("Calibration failed.");
+								result.magnetic.x = CALIBRATE_ERROR_MAGIC;
+								result.magnetic.y = CALIBRATE_ERROR_MAGIC;
+								result.magnetic.z = CALIBRATE_ERROR_MAGIC;
+								result.magnetic.status = 0;
+							}
+						} else {
+							result = raw;
+						}
 
-					data++;
-					numEventReceived++;
-				}
-				count--;
+						*data = result;
+						data->version = sizeof(sensors_event_t);
+						data->sensor = mPendingEvent.sensor;
+						data->type = SENSOR_TYPE_MAGNETIC_FIELD;
+						data->timestamp = mPendingEvent.timestamp;
+
+						/* The raw data is stored inside sensors_event_t.data after
+						 * sensors_event_t.magnetic. Notice that the raw data is
+						 * required to composite the virtual sensor uncalibrated
+						 * magnetic field sensor.
+						 *
+						 * data[0~2]: calibrated magnetic field data.
+						 * data[3]: magnetic field data accuracy.
+						 * data[4~6]: uncalibrated magnetic field data.
+						 */
+						data->data[4] = mPendingEvent.data[0];
+						data->data[5] = mPendingEvent.data[1];
+						data->data[6] = mPendingEvent.data[2];
+
+						data++;
+						numEventReceived++;
+						count--;
+					}
+					break;
 			}
 		} else {
 			ALOGE("CompassSensor: unknown event (type=%d, code=%d)",
