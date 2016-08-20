@@ -34,21 +34,15 @@
 #include "log.h"
 #include "util.h"
 
-#include "init_msm.h"
-
-void init_msm_properties(unsigned long msm_id, unsigned long msm_ver, char *board_type)
+void init_variant_properties()
 {
     char platform[PROP_VALUE_MAX];
     char model[110];
     FILE* fp;
     int rc;
 
-    UNUSED(msm_id);
-    UNUSED(msm_ver);
-    UNUSED(board_type);
-
     rc = property_get("ro.board.platform", platform);
-    if (!rc || !ISMATCH(platform, ANDROID_TARGET))
+    if (!rc || strncmp(platform, ANDROID_TARGET,8))
         return;
 
     fp = fopen("/proc/app_info", "rb");
@@ -88,4 +82,8 @@ void init_msm_properties(unsigned long msm_id, unsigned long msm_ver, char *boar
         property_set("ro.build.product", "Y635-L21");
         property_set("ro.telephony.default_network", "9");
     }
+}
+
+void vendor_load_properties() { 
+	init_variant_properties();
 }
