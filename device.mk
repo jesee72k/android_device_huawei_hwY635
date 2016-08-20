@@ -113,6 +113,10 @@ PRODUCT_PACKAGES += \
     libcurl \
     libhuawei_cutilz 
 
+# Snap Camera
+PRODUCT_PACKAGES += \
+    Snap
+
 # dataservices
 PRODUCT_PACKAGES += \
     librmnetctl \
