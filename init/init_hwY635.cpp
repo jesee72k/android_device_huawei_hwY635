@@ -25,33 +25,36 @@
    IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdlib>
+#include <fstream>
+#include <string>
 
 #include "vendor_init.h"
 #include "property_service.h"
 #include "log.h"
 #include "util.h"
 
-void init_variant_properties()
+#define ISMATCH(a,b)    (!strncmp(a,b,PROP_VALUE_MAX))
+
+void vendor_load_properties()
 {
     char platform[PROP_VALUE_MAX];
-    char model[110];
-    FILE* fp;
+    std::ifstream fin;
+    std::string buf;
     int rc;
 
     rc = property_get("ro.board.platform", platform);
-    if (!rc || strncmp(platform, ANDROID_TARGET,8))
+    if (!rc || !ISMATCH(platform, ANDROID_TARGET))
         return;
 
-    fp = fopen("/proc/app_info", "rb");
-    while (fgets(model, 100, fp))
-        if (strstr(model, "huawei_fac_product_name") != NULL)
+    fin.open("/proc/app_info");
+    while (getline(fin, buf))
+        if (buf.find("huawei_fac_product_name") != std::string::npos)
             break;
+    fin.close();
 
     /* Y635-L01 */
-   if (strstr(model, "Y635-L01") != NULL) {
+    if (buf.find("Y635-L01") != std::string::npos) {
         property_set("ro.product.model", "Y635-L01");
         property_set("ro.product.name", "Y635-L01");
         property_set("ro.product.device", "Y635-L01");
@@ -59,7 +62,7 @@ void init_variant_properties()
         property_set("ro.telephony.default_network", "9");
     }
     /* Y635-L02 */
-   else if (strstr(model, "Y635-L02") != NULL) {
+    else if (buf.find("Y635-L02") != std::string::npos) {
         property_set("ro.product.model", "Y635-L02");
         property_set("ro.product.name", "Y635-L02");
         property_set("ro.product.device", "Y635-L02");
@@ -67,7 +70,7 @@ void init_variant_properties()
         property_set("ro.telephony.default_network", "9");
     }
     /* Y635-L03 */
-   else if (strstr(model, "Y635-L03") != NULL) {
+    else if (buf.find("Y635-L03") != std::string::npos) {
         property_set("ro.product.model", "Y635-L03");
         property_set("ro.product.name", "Y635-L03");
         property_set("ro.product.device", "Y635-L03");
@@ -75,15 +78,11 @@ void init_variant_properties()
         property_set("ro.telephony.default_network", "9");
     }
     /* Y635-L21 */
-   else if (strstr(model, "Y635-L21") != NULL) {
+    else if (buf.find("Y635-L21") != std::string::npos) {
         property_set("ro.product.model", "Y635-L21");
         property_set("ro.product.name", "Y635-L21");
         property_set("ro.product.device", "Y635-L21");
         property_set("ro.build.product", "Y635-L21");
         property_set("ro.telephony.default_network", "9");
     }
-}
-
-void vendor_load_properties() { 
-	init_variant_properties();
 }
