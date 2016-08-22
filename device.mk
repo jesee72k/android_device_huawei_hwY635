@@ -113,6 +113,10 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     Snap
 
+# Gello
+PRODUCT_PACKAGES += \
+    Gello
+
 # dataservices
 PRODUCT_PACKAGES += \
     librmnetctl \
