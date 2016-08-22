@@ -105,10 +105,6 @@ PRODUCT_PACKAGES += \
 # Camera
 PRODUCT_PACKAGES += \
     camera.msm8916 \
-    mm-qcamera-app \
-    libmm-omxcore \
-    libmmjpeg_interface \
-    libqomx_core \
     libstlport \
     libcurl \
     libhuawei_cutilz 
@@ -149,6 +145,7 @@ PRODUCT_PACKAGES += \
     libdivxdrmdecrypt \
     libOmxAacEnc \
     libOmxAmrEnc \
+    libmm-omxcore \
     libOmxCore \
     libOmxEvrcEnc \
     libOmxQcelp13Enc \
