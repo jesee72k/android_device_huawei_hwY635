@@ -179,6 +179,10 @@ vendor/lib/libwvdrm_L3.so
 vendor/lib/libwvm.so
 vendor/lib/libWVStreamControlAPI_L3.so
 
+# Sensors
+vendor/lib/libcalmodule_akm.so
+vendor/lib/libcalmodule_gyroscope.so
+
 # Camera
 bin/mm-qcamera-daemon
 lib/liboeminfo.so
@@ -645,5 +649,72 @@ vendor/lib/libmmcamera_sunny_q5v41b_eeprom.so
 vendor/lib/libmmcamera_sunny_q8v18a_eeprom.so
 vendor/lib/libmmcamera_sunny_q13v04b_eeprom.so
 vendor/lib/libmmcamera_truly_cm7700_eeprom.so
+
+# Graphics firmware
+etc/firmware/a300_pfp.fw
+etc/firmware/a300_pm4.fw
+
+# Qualcomm framework
+bin/irsc_util
+bin/oeminfo_server
+etc/data/dsi_config.xml
+etc/data/netmgr_config.xml
+-lib/libhuawei_secure.so
+-lib/liboeminfo_oem_api.so
+lib/libqmi_nv_api.so
+-lib/libqmi_oem_api.so
+vendor/lib/libdiag.so
+vendor/lib/libdsi_netctrl.so
+vendor/lib/libdsutils.so
+vendor/lib/libidl.so
+vendor/lib/libqcci_legacy.so
+vendor/lib/libqdi.so
+vendor/lib/libqdp.so
+vendor/lib/libqmi_cci.so
+vendor/lib/libqmi_client_helper.so
+vendor/lib/libqmi_client_qmux.so
+vendor/lib/libqmi_common_so.so
+vendor/lib/libqmi_csi.so
+vendor/lib/libqmi_encdec.so
+vendor/lib/libqmiservices.so
+vendor/lib/libqmi.so
+vendor/lib/libsmemlog.so
+
+# Venus (media) firmware
+etc/firmware/venus.b00
+etc/firmware/venus.b01
+etc/firmware/venus.b02
+etc/firmware/venus.b03
+etc/firmware/venus.b04
+etc/firmware/venus.mbn
+etc/firmware/venus.mdt
+
+# Huawei
+bin/libqmi_oem_main
+bin/rmt_oeminfo
+bin/test_diag
+etc/firmware/cherry_gis_fw.img
+etc/firmware/cherry_ofilm_fw.img
+etc/firmware/cherry_yassy_fw.img
+etc/firmware/fused_nvm_y635_cl00.bin
+etc/firmware/g620S_junda_fw.img
+etc/firmware/g620S_ofilm_fw.img
+etc/firmware/g620S_truly_fw.img
+etc/firmware/g660S_ofilm_fw.img
+etc/firmware/g660S_truly_fw.img
+etc/firmware/g760-HB3748B8EBC_FMT_ATL.fw
+etc/firmware/g760-HB3748B8EBC_LS_LS.fw
+etc/firmware/g760-HB3748B8EBC_XWD_SDI.fw
+etc/firmware/g760L_lensone_fw.img
+etc/firmware/g760L_ofilm_fw.img
+etc/firmware/goodix_new_ofilm_fw.bin
+etc/firmware/goodix_ofilm_fw.bin
+etc/firmware/ice40.bin
+etc/firmware/leia_pfp_470.fw
+etc/firmware/leia_pm4_470.fw
+etc/firmware/Signedrompatch_v20.bin
+etc/firmware/Signedrompatch_v21.bin
+etc/firmware/Signedrompatch_v24.bin
+etc/firmware/Signedrompatch_v30.bin
 
 # other blobs should be added here to enable future functionality !
