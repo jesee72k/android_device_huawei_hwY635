@@ -324,19 +324,21 @@ NativeSensorManager::~NativeSensorManager()
 			delete context[i].driver;
 		}
 
-		list_for_each_safe(node, n, &context[i].listener) {
-			item = node_to_item(node, struct SensorRefMap, list);
-			if (item != NULL) {
-				list_remove(&item->list);
-				delete item;
+		if (node != NULL) {
+			list_for_each_safe(node, n, &context[i].listener) {
+				item = node_to_item(node, struct SensorRefMap, list);
+				if (item != NULL) {
+					list_remove(&item->list);
+					delete item;
+				}
 			}
-		}
 
-		list_for_each_safe(node, n, &context[i].dep_list) {
-			item = node_to_item(node, struct SensorRefMap, list);
-			if (item != NULL) {
-				list_remove(&item->list);
-				delete item;
+			list_for_each_safe(node, n, &context[i].dep_list) {
+				item = node_to_item(node, struct SensorRefMap, list);
+				if (item != NULL) {
+					list_remove(&item->list);
+					delete item;
+				}
 			}
 		}
 	}
@@ -779,14 +781,15 @@ int NativeSensorManager::getEventPath(const char *sysfs_path, char *event_path)
 	int len;
 	char *needle;
 
+	if ((sysfs_path == NULL) || (event_path == NULL)) {
+		ALOGE("invalid NULL argument.");
+		return -EINVAL;
+	}
+
 	dir = opendir(sysfs_path);
 	if (dir == NULL) {
 		ALOGE("open %s failed.(%s)\n", strerror(errno));
 		return -1;
-	}
-	if ((sysfs_path == NULL) || (event_path == NULL)) {
-		ALOGE("invalid NULL argument.");
-		return -EINVAL;
 	}
 
 	len = readlink(sysfs_path, symlink, PATH_MAX);
@@ -933,13 +936,13 @@ int NativeSensorManager::activate(int handle, int enable)
 			/* HAL 1.3 already set listener's delay and latency
 			 * Sync it right now to make it take effect.
 			 */
-			syncDelay(item->ctx->sensor->handle);
 			syncLatency(item->ctx->sensor->handle);
 #endif
 
 			/* Enable the background sensor and register a listener on it. */
 			ALOGD("%s calling driver enable", item->ctx->sensor->name);
 			item->ctx->driver->enable(item->ctx->sensor->handle, 1);
+			syncDelay(item->ctx->sensor->handle);
 
 		} else {
 			/* The background sensor has other listeners, we need
