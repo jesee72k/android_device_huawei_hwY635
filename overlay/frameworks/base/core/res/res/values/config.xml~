@@ -231,9 +231,9 @@
          movement threshold where scrolling should begin. -->
     <dimen name="config_viewConfigurationTouchSlop">4dp</dimen>
 
-    <!--<integer name="config_deviceHardwareKeys">71</integer>
+    <integer name="config_deviceHardwareKeys">71</integer>
 
-    <integer name="config_deviceHardwareWakeKeys">64</integer>-->
+    <integer name="config_deviceHardwareWakeKeys">64</integer>
 
     <!-- Device configuration setting the minfree tunable in the lowmemorykiller in the
          kernel. A high value will cause the lowmemorykiller to fire earlier, keeping more

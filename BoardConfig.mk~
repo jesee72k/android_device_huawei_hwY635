@@ -196,7 +196,7 @@ ifeq ($(HOST_OS),linux)
 endif
 
 #Use dlmalloc instead of jemalloc for mallocs
-MALLOC_IMPL := dlmalloc
+#MALLOC_IMPL := dlmalloc
 
 # Wifi
 BOARD_HAS_QCOM_WLAN := true

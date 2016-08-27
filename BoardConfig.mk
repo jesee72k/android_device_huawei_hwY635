@@ -173,10 +173,9 @@ MAX_VIRTUAL_DISPLAY_DIMENSION := 2048
 TARGET_ENABLE_QC_AV_ENHANCEMENTS := true
 
 # SELinux
-include device/qcom/sepolicy/sepolicy.mk
+#include device/qcom/sepolicy/sepolicy.mk
 
-BOARD_SEPOLICY_DIRS += \
-    $(LOCAL_PATH)/sepolicy
+#BOARD_SEPOLICY_DIRS += $(LOCAL_PATH)/sepolicy
 
 TARGET_SYSTEM_PROP := $(LOCAL_PATH)/system.prop
 
