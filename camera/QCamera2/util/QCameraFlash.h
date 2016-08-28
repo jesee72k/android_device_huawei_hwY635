@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2015, The Linux Foundataion. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -27,34 +27,40 @@
  *
  */
 
-#include "QCamera2Factory.h"
+#ifndef __QCAMERA_FLASH_H__
+#define __QCAMERA_FLASH_H__
 
-static hw_module_t camera_common = {
-    tag: HARDWARE_MODULE_TAG,
-    module_api_version: CAMERA_MODULE_API_VERSION_1_0,
-    hal_api_version: HARDWARE_HAL_API_VERSION,
-    id: CAMERA_HARDWARE_MODULE_ID,
-    name: "QCamera Module",
-    author: "Qualcomm Innovation Center Inc",
-    methods: &qcamera::QCamera2Factory::mModuleMethods,
-    dso: NULL,
-    reserved:  {0},
+#include <hardware/camera_common.h>
+
+extern "C" {
+#include <mm_camera_interface.h>
+}
+
+namespace qcamera {
+
+class QCameraFlash {
+public:
+    static QCameraFlash& getInstance();
+
+    int32_t registerCallbacks(const camera_module_callbacks_t* callbacks);
+    int32_t initFlash(const int camera_id);
+    int32_t setFlashMode(const int camera_id, const bool on);
+    int32_t deinitFlash(const int camera_id);
+    int32_t reserveFlashForCamera(const int camera_id);
+    int32_t releaseFlashFromCamera(const int camera_id);
+
+private:
+    QCameraFlash();
+    virtual ~QCameraFlash();
+    QCameraFlash(const QCameraFlash&);
+    QCameraFlash& operator=(const QCameraFlash&);
+
+    const camera_module_callbacks_t *m_callbacks;
+    int32_t m_flashFds[MM_CAMERA_MAX_NUM_SENSORS];
+    bool m_flashOn[MM_CAMERA_MAX_NUM_SENSORS];
+    bool m_cameraOpen[MM_CAMERA_MAX_NUM_SENSORS];
 };
 
-camera_module_t HAL_MODULE_INFO_SYM = {
-    common: camera_common,
-    get_number_of_cameras: qcamera::QCamera2Factory::get_number_of_cameras,
-    get_camera_info: qcamera::QCamera2Factory::get_camera_info,
-#ifndef USE_JB_MR1
-    set_callbacks: NULL,
-#endif
-#ifdef USE_VENDOR_CAMERA_EXT
-    get_vendor_tag_ops: NULL,
-#ifndef USE_KK_CODE
-    open_legacy: NULL,
-    set_torch_mode: NULL,
-    init: NULL,
-#endif
-    reserved:  {0}
-#endif
-};
+}; // namespace qcamera
+
+#endif /* __QCAMERA_FLASH_H__ */

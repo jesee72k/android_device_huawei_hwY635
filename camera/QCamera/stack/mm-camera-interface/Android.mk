@@ -1,4 +1,4 @@
-#ifeq ($(call is-board-platform,msm8960),true)
+#ifeq ($(TARGET_BOARD_PLATFORM),msm8960)
 OLD_LOCAL_PATH := $(LOCAL_PATH)
 LOCAL_PATH := $(call my-dir)
 
@@ -42,14 +42,13 @@ LOCAL_C_INCLUDES += \
     $(TARGET_OUT_HEADERS)/mm-still/mm-omx
 # (END) Need to remove later once dependency on jpeg removed
 
-LOCAL_C_INCLUDES+= $(call project-path-for,qcom-media)/mm-core/inc
+LOCAL_C_INCLUDES+= hardware/qcom/media/msm8974/mm-core/inc
 LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/socket.h
 LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/un.h
 
 LOCAL_SRC_FILES := $(MM_CAM_FILES)
 
 LOCAL_MODULE           := libmmcamera_interface
-LOCAL_PRELINK_MODULE   := false
 LOCAL_SHARED_LIBRARIES := libdl libcutils liblog
 LOCAL_MODULE_TAGS := optional
 

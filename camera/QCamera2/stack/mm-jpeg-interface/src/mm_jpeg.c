@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -32,6 +32,7 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/prctl.h>
 #include <fcntl.h>
 #include <poll.h>
 
@@ -224,8 +225,10 @@ OMX_ERRORTYPE mm_jpeg_session_change_state(mm_jpeg_job_session_t* p_session,
   }
 
   p_session->state_change_pending = OMX_TRUE;
+  pthread_mutex_unlock(&p_session->lock);
   ret = OMX_SendCommand(p_session->omx_handle, OMX_CommandStateSet,
     new_state, NULL);
+  pthread_mutex_lock(&p_session->lock);
   if (ret) {
     CDBG_ERROR("%s:%d] Error %d", __func__, __LINE__, ret);
     pthread_mutex_unlock(&p_session->lock);
@@ -746,9 +749,9 @@ OMX_ERRORTYPE mm_jpeg_session_config_ports(mm_jpeg_job_session_t* p_session)
   p_session->inputPort.format.image.nFrameHeight =
     p_params->main_dim.src_dim.height;
   p_session->inputPort.format.image.nStride =
-    p_src_buf->offset.mp[0].stride;
+       p_src_buf->offset.mp[0].stride;
   p_session->inputPort.format.image.nSliceHeight =
-    p_src_buf->offset.mp[0].scanline;
+       p_src_buf->offset.mp[0].scanline;
   p_session->inputPort.format.image.eColorFormat =
     map_jpeg_format(p_params->color_format);
   p_session->inputPort.nBufferSize =
@@ -769,9 +772,9 @@ OMX_ERRORTYPE mm_jpeg_session_config_ports(mm_jpeg_job_session_t* p_session)
     p_session->inputTmbPort.format.image.nFrameHeight =
       p_params->thumb_dim.src_dim.height;
     p_session->inputTmbPort.format.image.nStride =
-      p_tmb_buf->offset.mp[0].stride;
+         p_tmb_buf->offset.mp[0].stride;
     p_session->inputTmbPort.format.image.nSliceHeight =
-      p_tmb_buf->offset.mp[0].scanline;
+         p_tmb_buf->offset.mp[0].scanline;
     p_session->inputTmbPort.format.image.eColorFormat =
       map_jpeg_format(p_params->thumb_color_format);
     p_session->inputTmbPort.nBufferSize =
@@ -910,6 +913,7 @@ OMX_ERRORTYPE mm_jpeg_session_config_thumbnail(mm_jpeg_job_session_t* p_session)
   thumbnail_info.crop_info.nLeft = p_thumb_dim->crop.left;
   thumbnail_info.crop_info.nTop = p_thumb_dim->crop.top;
   thumbnail_info.rotation = p_params->thumb_rotation;
+  thumbnail_info.quality = p_params->thumb_quality;
 
   if ((p_thumb_dim->dst_dim.width > p_thumb_dim->src_dim.width)
     || (p_thumb_dim->dst_dim.height > p_thumb_dim->src_dim.height)) {
@@ -1148,7 +1152,8 @@ OMX_ERRORTYPE mm_jpeg_session_config_common(mm_jpeg_job_session_t *p_session)
   if (NULL != p_jobparams->p_metadata) {
     exif_info.numOfEntries = 0;
     exif_info.exif_data = &p_session->exif_info_local[0];
-    process_meta_data(p_jobparams->p_metadata, &exif_info, &p_jobparams->cam_exif_params);
+    process_meta_data(p_jobparams->p_metadata, &exif_info,
+      &p_jobparams->cam_exif_params, p_jobparams->hal_version);
     /* After Parse metadata */
     p_session->exif_count_local = exif_info.numOfEntries;
 
@@ -1164,6 +1169,8 @@ OMX_ERRORTYPE mm_jpeg_session_config_common(mm_jpeg_job_session_t *p_session)
         return rc;
       }
     }
+  } else {
+    CDBG_ERROR("%s:%d] Metadata is null rc = %d", __func__, __LINE__, rc);
   }
 
   return rc;
@@ -1257,6 +1264,7 @@ static OMX_ERRORTYPE mm_jpeg_configure_job_params(
   OMX_INDEXTYPE work_buffer_index;
   mm_jpeg_encode_params_t *p_params = &p_session->params;
   mm_jpeg_encode_job_t *p_jobparams = &p_session->encode_job;
+  int i;
 
     /* common config */
   ret = mm_jpeg_session_config_common(p_session);
@@ -1321,6 +1329,18 @@ static OMX_ERRORTYPE mm_jpeg_configure_job_params(
   CDBG_ERROR("%s: config makernote data failed", __func__);
   if (OMX_ErrorNone != ret) {
     return ret;
+  }
+
+  /* set QTable */
+  for (i = 0; i < QTABLE_MAX; i++) {
+    if (p_jobparams->qtable_set[i]) {
+      ret = OMX_SetConfig(p_session->omx_handle,
+        OMX_IndexParamQuantizationTable, &p_jobparams->qtable[i]);
+      if (OMX_ErrorNone != ret) {
+        CDBG_ERROR("%s:%d] set QTable Error", __func__, __LINE__);
+        return ret;
+      }
+    }
   }
 
   return ret;
@@ -1599,6 +1619,7 @@ static void *mm_jpeg_jobmgr_thread(void *data)
   mm_jpeg_obj *my_obj = (mm_jpeg_obj*)data;
   mm_jpeg_job_cmd_thread_t *cmd_thread = &my_obj->job_mgr;
   mm_jpeg_job_q_node_t* node = NULL;
+  prctl(PR_SET_NAME, (unsigned long)"mm_jpeg_thread", 0, 0, 0);
 
   do {
     do {
@@ -2104,14 +2125,14 @@ int32_t mm_jpeg_create_session(mm_jpeg_obj *my_obj,
   if ((p_params->num_src_bufs > MM_JPEG_MAX_BUF)
     || (p_params->num_dst_bufs > MM_JPEG_MAX_BUF)) {
     CDBG_ERROR("%s:%d] invalid num buffers", __func__, __LINE__);
-    return rc;
+    return -1;
   }
 
   /* check if valid client */
   clnt_idx = mm_jpeg_util_get_index_by_handler(client_hdl);
   if (clnt_idx >= MAX_JPEG_CLIENT_NUM) {
     CDBG_ERROR("%s: invalid client with handler (%d)", __func__, client_hdl);
-    return rc;
+    return -1;
   }
 
   num_omx_sessions = 1;
@@ -2153,6 +2174,11 @@ int32_t mm_jpeg_create_session(mm_jpeg_obj *my_obj,
   /* init output buf queue */
   p_out_buf_q = (mm_jpeg_queue_t *) malloc(sizeof(*p_out_buf_q));
   if (NULL == p_out_buf_q) {
+    CDBG_ERROR("%s:%d] Error: Cannot allocate memory\n", __func__, __LINE__);
+    return -1;
+  }
+
+  if (NULL == p_session_handle_q) {
     CDBG_ERROR("%s:%d] Error", __func__, __LINE__);
     return -1;
   }
@@ -2211,6 +2237,13 @@ int32_t mm_jpeg_create_session(mm_jpeg_obj *my_obj,
 
     mm_jpeg_queue_enq(p_session_handle_q, p_session);
 
+    p_session->meta_enc_key = NULL;
+    p_session->meta_enc_keylen = 0;
+
+#ifdef MM_JPEG_READ_META_KEYFILE
+    mm_jpeg_read_meta_keyfile(p_session, META_KEYFILE);
+#endif
+
     if (OMX_FALSE == p_session->config) {
       rc = mm_jpeg_session_configure(p_session);
       if (rc) {
@@ -2228,13 +2261,6 @@ int32_t mm_jpeg_create_session(mm_jpeg_obj *my_obj,
   for (i = 0; i < p_params->num_dst_bufs; i++) {
     mm_jpeg_queue_enq(p_out_buf_q, (void *)(i+1));
   }
-
-  p_session->meta_enc_key = NULL;
-  p_session->meta_enc_keylen = 0;
-
-#ifdef MM_JPEG_READ_META_KEYFILE
-  mm_jpeg_read_meta_keyfile(p_session, META_KEYFILE);
-#endif
 
   return rc;
 }
@@ -2256,7 +2282,7 @@ static int32_t mm_jpegenc_destroy_job(mm_jpeg_job_session_t *p_session)
   mm_jpeg_encode_job_t *p_jobparams = &p_session->encode_job;
   int i = 0, rc = 0;
 
-  CDBG_ERROR("%s:%d] Exif entry count %d %d", __func__, __LINE__,
+  CDBG_HIGH("%s:%d] Exif entry count %d %d", __func__, __LINE__,
     (int)p_jobparams->exif_info.numOfEntries,
     (int)p_session->exif_count_local);
   for (i = 0; i < p_session->exif_count_local; i++) {
@@ -2442,7 +2468,7 @@ int32_t mm_jpeg_destroy_session_unlocked(mm_jpeg_obj *my_obj,
 
   /* abort the current session */
   mm_jpeg_session_abort(p_session);
-  mm_jpeg_remove_session_idx(my_obj, session_id);
+  //mm_jpeg_remove_session_idx(my_obj, session_id);
 
   return rc;
 }
@@ -2664,12 +2690,12 @@ mm_jpeg_job_q_node_t* mm_jpeg_queue_remove_job_by_client_id(
     data = (mm_jpeg_job_q_node_t *)node->data;
 
     if (data && (data->enc_info.client_handle == client_hdl)) {
-      CDBG_ERROR("%s:%d] found matching client handle", __func__, __LINE__);
+      CDBG_HIGH("%s:%d] found matching client handle", __func__, __LINE__);
       job_node = data;
       cam_list_del_node(&node->list);
       queue->size--;
       free(node);
-      CDBG_ERROR("%s: queue size = %d", __func__, queue->size);
+      CDBG_HIGH("%s: queue size = %d", __func__, queue->size);
       break;
     }
     pos = pos->next;
@@ -2698,12 +2724,12 @@ mm_jpeg_job_q_node_t* mm_jpeg_queue_remove_job_by_session_id(
     data = (mm_jpeg_job_q_node_t *)node->data;
 
     if (data && (data->enc_info.encode_job.session_id == session_id)) {
-      CDBG_ERROR("%s:%d] found matching session id", __func__, __LINE__);
+      CDBG_HIGH("%s:%d] found matching session id", __func__, __LINE__);
       job_node = data;
       cam_list_del_node(&node->list);
       queue->size--;
       free(node);
-      CDBG_ERROR("%s: queue size = %d", __func__, queue->size);
+      CDBG_HIGH("%s: queue size = %d", __func__, queue->size);
       break;
     }
     pos = pos->next;
@@ -2732,21 +2758,24 @@ mm_jpeg_job_q_node_t* mm_jpeg_queue_remove_job_by_job_id(
     node = member_of(pos, mm_jpeg_q_node_t, list);
     data = (mm_jpeg_job_q_node_t *)node->data;
 
-    if (data != NULL) {
-        if (data->type == MM_JPEG_CMD_TYPE_DECODE_JOB) {
-            lq_job_id = data->dec_info.job_id;
-        } else {
-            lq_job_id = data->enc_info.job_id;
-        }
+    if(NULL == data) {
+      CDBG_ERROR("%s:%d] Data is NULL", __func__, __LINE__);
+      return NULL;
+    }
 
-      if (lq_job_id == job_id) {
-        CDBG_ERROR("%s:%d] found matching job id", __func__, __LINE__);
-        job_node = data;
-        cam_list_del_node(&node->list);
-        queue->size--;
-        free(node);
-        break;
-      }
+    if (data->type == MM_JPEG_CMD_TYPE_DECODE_JOB) {
+      lq_job_id = data->dec_info.job_id;
+    } else {
+      lq_job_id = data->enc_info.job_id;
+    }
+
+    if (data && (lq_job_id == job_id)) {
+      CDBG_HIGH("%s:%d] found matching job id", __func__, __LINE__);
+      job_node = data;
+      cam_list_del_node(&node->list);
+      queue->size--;
+      free(node);
+      break;
     }
     pos = pos->next;
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -130,7 +130,7 @@ int mm_app_allocate_ion_memory(mm_camera_app_buf_t *buf, int ion_type)
     alloc.len = (alloc.len + 4095) & (~4095);
     alloc.align = 4096;
     alloc.flags = ION_FLAG_CACHED;
-    alloc.heap_id_mask = ion_type;
+    alloc.heap_mask = ion_type;
     rc = ioctl(main_ion_fd, ION_IOC_ALLOC, &alloc);
     if (rc < 0) {
         CDBG_ERROR("ION allocation failed\n");
@@ -522,7 +522,7 @@ int mm_app_open(mm_camera_app_t *cam_app,
 
     /* alloc ion mem for getparm buf */
     memset(&offset_info, 0, sizeof(offset_info));
-    offset_info.frame_len = ONE_MB_OF_PARAMS;
+    offset_info.frame_len = sizeof(parm_buffer_t);
     rc = mm_app_alloc_bufs(&test_obj->parm_buf,
                            &offset_info,
                            1,
@@ -542,7 +542,7 @@ int mm_app_open(mm_camera_app_t *cam_app,
         CDBG_ERROR("%s:map getparm_buf error\n", __func__);
         goto error_after_getparm_buf_alloc;
     }
-    test_obj->params_buffer = (parm_buffer_new_t*) test_obj->parm_buf.mem_info.data;
+    test_obj->params_buffer = (parm_buffer_t*) test_obj->parm_buf.mem_info.data;
     CDBG_HIGH("\n%s params_buffer=%p\n",__func__,test_obj->params_buffer);
 
     rc = test_obj->cam->ops->register_event_notify(test_obj->cam->camera_handle,
@@ -587,6 +587,84 @@ error_after_cap_buf_alloc:
 error_after_cam_open:
     test_obj->cam->ops->close_camera(test_obj->cam->camera_handle);
     test_obj->cam = NULL;
+    return rc;
+}
+
+int add_parm_entry_tobatch(parm_buffer_t *p_table,
+                           cam_intf_parm_type_t paramType,
+                           uint32_t paramLength,
+                           void *paramValue)
+{
+    int rc = MM_CAMERA_OK;
+    void* dst;
+
+    if (paramLength > get_size_of(paramType)) {
+        CDBG_ERROR("%s:Size of input larger than max entry size",__func__);
+        return -1;
+    }
+    dst = get_pointer_of(paramType, p_table);
+    if(dst){
+        memcpy(dst, paramValue, paramLength);
+        p_table->is_valid[paramType] = 1;
+    }
+    return rc;
+}
+
+int init_batch_update(parm_buffer_t *p_table)
+{
+    int rc = MM_CAMERA_OK;
+    CDBG_HIGH("\nEnter %s\n",__func__);
+    int32_t hal_version = CAM_HAL_V1;
+
+    memset(p_table, 0, sizeof(parm_buffer_t));
+    rc = add_parm_entry_tobatch(p_table, CAM_INTF_PARM_HAL_VERSION,sizeof(hal_version), &hal_version);
+    if (rc != MM_CAMERA_OK) {
+        CDBG_ERROR("%s: add_parm_entry_tobatch failed !!", __func__);
+    }
+    return rc;
+}
+
+int commit_set_batch(mm_camera_test_obj_t *test_obj)
+{
+    int rc = MM_CAMERA_OK;
+    int i = 0;
+
+    for(i = 0; i < CAM_INTF_PARM_MAX; i++){
+        if(test_obj->params_buffer->is_valid[i])
+            break;
+    }
+    if (i < CAM_INTF_PARM_MAX) {
+        CDBG_HIGH("\n set_param p_buffer =%p\n",test_obj->params_buffer);
+        rc = test_obj->cam->ops->set_parms(test_obj->cam->camera_handle, test_obj->params_buffer);
+    }
+    if (rc != MM_CAMERA_OK) {
+        CDBG_ERROR("%s: cam->ops->set_parms failed !!", __func__);
+    }
+    return rc;
+}
+
+
+int mm_app_set_params(mm_camera_test_obj_t *test_obj,
+                      cam_intf_parm_type_t param_type,
+                      int32_t value)
+{
+    CDBG_HIGH("\nEnter mm_app_set_params!! param_type =%d & value =%d\n",param_type, value);
+    int rc = MM_CAMERA_OK;
+    rc = init_batch_update(test_obj->params_buffer);
+    if (rc != MM_CAMERA_OK) {
+        CDBG_ERROR("%s: init_batch_update failed !!", __func__);
+        return rc;
+    }
+    rc = add_parm_entry_tobatch(test_obj->params_buffer, param_type, sizeof(value), &value);
+    if (rc != MM_CAMERA_OK) {
+        CDBG_ERROR("%s: add_parm_entry_tobatch failed !!", __func__);
+        return rc;
+    }
+    rc = commit_set_batch(test_obj);
+    if (rc != MM_CAMERA_OK) {
+        CDBG_ERROR("%s: commit_set_batch failed !!", __func__);
+        return rc;
+    }
     return rc;
 }
 
@@ -780,94 +858,39 @@ int mm_app_stop_channel(mm_camera_test_obj_t *test_obj,
                                             channel->ch_id);
 }
 
-int initBatchUpdate(mm_camera_test_obj_t *test_obj)
-{
-    parm_buffer_new_t *param_buf = ( parm_buffer_new_t * ) test_obj->parm_buf.mem_info.data;
-
-    memset(param_buf, 0, sizeof(ONE_MB_OF_PARAMS));
-    param_buf->num_entry = 0;
-    param_buf->curr_size = 0;
-    param_buf->tot_rem_size = ONE_MB_OF_PARAMS - sizeof(parm_buffer_new_t);
-
-    return MM_CAMERA_OK;
-}
-
-int commitSetBatch(mm_camera_test_obj_t *test_obj)
-{
-    int rc = MM_CAMERA_OK;
-    parm_buffer_new_t *param_buf = (parm_buffer_new_t *)test_obj->parm_buf.mem_info.data;
-
-    if (param_buf->num_entry > 0) {
-        rc = test_obj->cam->ops->set_parms(test_obj->cam->camera_handle, param_buf);
-        ALOGD("%s: commitSetBatch done",__func__);
-    }
-
-    return rc;
-}
-
-
-int commitGetBatch(mm_camera_test_obj_t *test_obj)
-{
-    int rc = MM_CAMERA_OK;
-    parm_buffer_new_t *param_buf = (parm_buffer_new_t *)test_obj->parm_buf.mem_info.data;
-
-    if (param_buf->num_entry > 0) {
-        rc = test_obj->cam->ops->get_parms(test_obj->cam->camera_handle, param_buf);
-        ALOGD("%s: commitGetBatch done",__func__);
-    }
-    return rc;
-}
-
 int AddSetParmEntryToBatch(mm_camera_test_obj_t *test_obj,
                            cam_intf_parm_type_t paramType,
                            uint32_t paramLength,
                            void *paramValue)
 {
-    uint32_t j = 0;
-    parm_buffer_new_t *param_buf = (parm_buffer_new_t *) test_obj->parm_buf.mem_info.data;
-    uint32_t num_entry = param_buf->num_entry;
-    uint32_t size_req = paramLength + sizeof(parm_entry_type_new_t);
-    uint32_t aligned_size_req = (size_req + 3) & (~3);
-    parm_entry_type_new_t *curr_param = (parm_entry_type_new_t *)&param_buf->entry[0];
+    parm_buffer_t *p_table = ( parm_buffer_t * ) test_obj->parm_buf.mem_info.data;
+    void* dst;
+    /*************************************************************************
+    *                   Copy contents into entry                             *
+    *************************************************************************/
 
-    /* first search if the key is already present in the batch list
-     * this is a search penalty but as the batch list is never more
-     * than a few tens of entries at most,it should be ok.
-     * if search performance becomes a bottleneck, we can
-     * think of implementing a hashing mechanism.
-     * but it is still better than the huge memory required for
-     * direct indexing
-     */
-    for (j = 0; j < num_entry; j++) {
-      if (paramType == curr_param->entry_type) {
-        ALOGD("%s:Batch parameter overwrite for param: %d",
-                                                __func__, paramType);
-        break;
-      }
-      curr_param = GET_NEXT_PARAM(curr_param, parm_entry_type_new_t);
+    if (paramLength > get_size_of(paramType)) {
+        ALOGE("%s:Size of input larger than max entry size",__func__);
+        return MM_CAMERA_E_GENERAL;
     }
-
-    //new param, search not found
-    if (j == num_entry) {
-      if (aligned_size_req > param_buf->tot_rem_size) {
-        ALOGE("%s:Batch buffer running out of size, commit and resend",__func__);
-        commitSetBatch(test_obj);
-        initBatchUpdate(test_obj);
-      }
-
-      curr_param = (parm_entry_type_new_t *)(&param_buf->entry[0] +
-                                                  param_buf->curr_size);
-      param_buf->curr_size += aligned_size_req;
-      param_buf->tot_rem_size -= aligned_size_req;
-      param_buf->num_entry++;
+    dst = get_pointer_of(paramType,p_table);
+    if(dst){
+        memcpy(dst, paramValue, paramLength);
+        p_table->is_valid[paramType] = 1;
     }
+    return MM_CAMERA_OK;
+}
 
-    curr_param->entry_type = paramType;
-    curr_param->size = (int32_t)paramLength;
-    curr_param->aligned_size = aligned_size_req;
-    memcpy(&curr_param->data[0], paramValue, paramLength);
-    ALOGD("%s: num_entry: %d, paramType: %d, paramLength: %d, aligned_size_req: %d",
-            __func__, param_buf->num_entry, paramType, paramLength, aligned_size_req);
+int initBatchUpdate(mm_camera_test_obj_t *test_obj)
+{
+    int32_t hal_version = CAM_HAL_V1;
+
+    parm_buffer_t *parm_buf = ( parm_buffer_t * ) test_obj->parm_buf.mem_info.data;
+    memset(parm_buf, 0, sizeof(parm_buffer_t));
+    AddSetParmEntryToBatch(test_obj,
+                           CAM_INTF_PARM_HAL_VERSION,
+                           sizeof(hal_version),
+                           &hal_version);
 
     return MM_CAMERA_OK;
 }
@@ -877,9 +900,47 @@ int ReadSetParmEntryToBatch(mm_camera_test_obj_t *test_obj,
                            uint32_t paramLength,
                            void *paramValue)
 {
-    parm_entry_type_new_t *param_buf = ( parm_entry_type_new_t * ) test_obj->parm_buf.mem_info.data;
-    memcpy(paramValue, POINTER_OF_PARAM(paramType,param_buf), paramLength);
+    void* dst;
+    parm_buffer_t *p_table = ( parm_buffer_t * ) test_obj->parm_buf.mem_info.data;
+    dst = get_pointer_of(paramType,p_table);
+    if (NULL == dst) {
+        ALOGE("%s: dst is NULL for paramType: %d", __func__, paramType);
+        return MM_CAMERA_E_GENERAL;
+    }
+    memcpy(paramValue, dst, paramLength);
     return MM_CAMERA_OK;
+}
+
+int commitSetBatch(mm_camera_test_obj_t *test_obj)
+{
+    int rc = MM_CAMERA_OK;
+    int i = 0;
+
+    parm_buffer_t *p_table = ( parm_buffer_t * ) test_obj->parm_buf.mem_info.data;
+    for(i = 0; i < CAM_INTF_PARM_MAX; i++){
+        if(p_table->is_valid[i])
+            break;
+    }
+    if (i < CAM_INTF_PARM_MAX) {
+        rc = test_obj->cam->ops->set_parms(test_obj->cam->camera_handle, p_table);
+    }
+    return rc;
+}
+
+
+int commitGetBatch(mm_camera_test_obj_t *test_obj)
+{
+    int rc = MM_CAMERA_OK;
+    int i = 0;
+    parm_buffer_t *p_table = ( parm_buffer_t * ) test_obj->parm_buf.mem_info.data;
+    for(i = 0; i < CAM_INTF_PARM_MAX; i++){
+        if(p_table->is_valid[i])
+            break;
+    }
+    if (i < CAM_INTF_PARM_MAX) {
+        rc = test_obj->cam->ops->get_parms(test_obj->cam->camera_handle, p_table);
+    }
+    return rc;
 }
 
 int setAecLock(mm_camera_test_obj_t *test_obj, int value)
@@ -2246,13 +2307,13 @@ int mm_camera_lib_send_command(mm_camera_lib_handle *handle,
 
             width = handle->test_obj.buffer_width;
             height = handle->test_obj.buffer_height;
-            handle->test_obj.buffer_width = camera_cap->raw_dim.width;
-            handle->test_obj.buffer_height = camera_cap->raw_dim.height;
+            handle->test_obj.buffer_width = camera_cap->raw_dim[0].width;
+            handle->test_obj.buffer_height = camera_cap->raw_dim[0].height;
             handle->test_obj.buffer_format = DEFAULT_RAW_FORMAT;
             CDBG_ERROR("%s: MM_CAMERA_LIB_RAW_CAPTURE %dx%d\n",
                        __func__,
-                       camera_cap->raw_dim.width,
-                       camera_cap->raw_dim.height);
+                       camera_cap->raw_dim[0].width,
+                       camera_cap->raw_dim[0].height);
             rc = mm_app_start_capture_raw(&handle->test_obj, 1);
             if (rc != MM_CAMERA_OK) {
                 CDBG_ERROR("%s: mm_app_start_capture() err=%d\n",

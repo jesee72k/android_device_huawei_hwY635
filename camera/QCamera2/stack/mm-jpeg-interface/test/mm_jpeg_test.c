@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,7 +33,7 @@
 #include <stdlib.h>
 
 #define MAX_NUM_BUFS (12)
-#define MAX_FILE_CNT (20)
+
 /** DUMP_TO_FILE:
  *  @filename: file name
  *  @p_addr: address of the buffer
@@ -42,10 +42,9 @@
  *  dump the image to the file
  **/
 #define DUMP_TO_FILE(filename, p_addr, len) ({ \
-  int rc = 0; \
   FILE *fp = fopen(filename, "w+"); \
   if (fp) { \
-    rc = fwrite(p_addr, 1, len, fp); \
+    fwrite(p_addr, 1, len, fp); \
     fclose(fp); \
   } else { \
     CDBG_ERROR("%s:%d] cannot dump image", __func__, __LINE__); \
@@ -55,22 +54,49 @@
 static int g_count = 1, g_i;
 
 typedef struct {
+  mm_jpeg_color_format fmt;
+  float mult;
+  const char *str;
+} mm_jpeg_intf_test_colfmt_t;
+
+typedef struct {
   char *filename;
   int width;
   int height;
   char *out_filename;
   int burst_mode;
   int min_out_bufs;
+  mm_jpeg_intf_test_colfmt_t col_fmt;
+  int encode_thumbnail;
+  int tmb_width;
+  int tmb_height;
+  int main_quality;
+  int thumb_quality;
 } jpeg_test_input_t;
 
-static jpeg_test_input_t jpeg_input[] = {
-  {"/data/test_1.yuv", 4000, 3008, "/data/test_1.jpg", 0, 0},
-  {"/data/test_2.yuv", 4000, 3008, "/data/test_2.jpg", 0, 0},
-  {"/data/test_3.yuv", 4000, 3008, "/data/test_3.jpg", 0, 0},
-  {"/data/test_4.yuv", 4000, 3008, "/data/test_4.jpg", 0, 0},
-  {"/data/test_5.yuv", 4000, 3008, "/data/test_5.jpg", 0, 0},
-  {"/data/test_6.yuv", 4000, 3008, "/data/test_6.jpg", 0, 0},
-  {NULL, 0, 0, NULL, 0, 0}
+/* Static constants */
+/*  default Luma Qtable */
+const uint8_t DEFAULT_QTABLE_0[QUANT_SIZE] = {
+  16, 11, 10, 16, 24, 40, 51, 61,
+  12, 12, 14, 19, 26, 58, 60, 55,
+  14, 13, 16, 24, 40, 57, 69, 56,
+  14, 17, 22, 29, 51, 87, 80, 62,
+  18, 22, 37, 56, 68, 109, 103, 77,
+  24, 35, 55, 64, 81, 104, 113, 92,
+  49, 64, 78, 87, 103, 121, 120, 101,
+  72, 92, 95, 98, 112, 100, 103, 99
+};
+
+/*  default Chroma Qtable */
+const uint8_t DEFAULT_QTABLE_1[QUANT_SIZE] = {
+  17, 18, 24, 47, 99, 99, 99, 99,
+  18, 21, 26, 66, 99, 99, 99, 99,
+  24, 26, 56, 99, 99, 99, 99, 99,
+  47, 66, 99, 99, 99, 99, 99, 99,
+  99, 99, 99, 99, 99, 99, 99, 99,
+  99, 99, 99, 99, 99, 99, 99, 99,
+  99, 99, 99, 99, 99, 99, 99, 99,
+  99, 99, 99, 99, 99, 99, 99, 99
 };
 
 typedef struct {
@@ -93,6 +119,25 @@ typedef struct {
   int min_out_bufs;
   uint32_t buf_filled_len[MAX_NUM_BUFS];
 } mm_jpeg_intf_test_t;
+
+
+
+static const mm_jpeg_intf_test_colfmt_t color_formats[] =
+{
+  { MM_JPEG_COLOR_FORMAT_YCRCBLP_H2V2, 1.5, "YCRCBLP_H2V2" },
+  { MM_JPEG_COLOR_FORMAT_YCBCRLP_H2V2, 1.5, "YCBCRLP_H2V2" },
+  { MM_JPEG_COLOR_FORMAT_YCRCBLP_H2V1, 2.0, "YCRCBLP_H2V1" },
+  { MM_JPEG_COLOR_FORMAT_YCBCRLP_H2V1, 2.0, "YCBCRLP_H2V1" },
+  { MM_JPEG_COLOR_FORMAT_YCRCBLP_H1V2, 2.0, "YCRCBLP_H1V2" },
+  { MM_JPEG_COLOR_FORMAT_YCBCRLP_H1V2, 2.0, "YCBCRLP_H1V2" },
+  { MM_JPEG_COLOR_FORMAT_YCRCBLP_H1V1, 3.0, "YCRCBLP_H1V1" },
+  { MM_JPEG_COLOR_FORMAT_YCBCRLP_H1V1, 3.0, "YCBCRLP_H1V1" }
+};
+
+static jpeg_test_input_t jpeg_input[] = {
+  {"/data/test_1.yuv", 4000, 3008, "/data/test_1.jpg", 0, 0,
+  { MM_JPEG_COLOR_FORMAT_YCRCBLP_H2V2, 1.5, "YCRCBLP_H2V2" }, 0, 320, 240, 80, 80}
+};
 
 static void mm_jpeg_encode_callback(jpeg_job_status_t status,
   uint32_t client_hdl,
@@ -123,7 +168,8 @@ static void mm_jpeg_encode_callback(jpeg_job_status_t status,
           __func__, __LINE__, p_obj->out_filename[i],
           p_output->buf_vaddr, p_output->buf_filled_len);
 
-      DUMP_TO_FILE(p_obj->out_filename[i], p_output->buf_vaddr, p_output->buf_filled_len);
+      DUMP_TO_FILE(p_obj->out_filename[i], p_output->buf_vaddr,
+        p_output->buf_filled_len);
     }
   }
   g_i++;
@@ -173,7 +219,6 @@ void mm_jpeg_test_free(buffer_t *p_buffer)
 
 int mm_jpeg_test_read(mm_jpeg_intf_test_t *p_obj, int idx)
 {
-  int rc = 0;
   FILE *fp = NULL;
   int file_size = 0;
   fp = fopen(p_obj->filename[idx], "rb");
@@ -205,17 +250,17 @@ static int encode_init(jpeg_test_input_t *p_input, mm_jpeg_intf_test_t *p_obj)
   mm_jpeg_encode_job_t *p_job_params = &p_obj->job.encode_job;
   int i = 0;
   int burst_mode = p_input->burst_mode;
-
+  jpeg_test_input_t *p_in = p_input;
   do {
-    p_obj->filename[i] = p_input->filename;
+    p_obj->filename[i] = p_in->filename;
     p_obj->width = p_input->width;
     p_obj->height = p_input->height;
-    p_obj->out_filename[i] = p_input->out_filename;
+    p_obj->out_filename[i] = p_in->out_filename;
     p_obj->use_ion = 1;
     p_obj->min_out_bufs = p_input->min_out_bufs;
 
     /* allocate buffers */
-    p_obj->input[i].size = size * 3/2;
+    p_obj->input[i].size = size * p_input->col_fmt.mult;
     rc = mm_jpeg_test_alloc(&p_obj->input[i], p_obj->use_ion);
     if (rc) {
       CDBG_ERROR("%s:%d] Error",__func__, __LINE__);
@@ -240,10 +285,20 @@ static int encode_init(jpeg_test_input_t *p_input, mm_jpeg_intf_test_t *p_obj)
     p_params->src_main_buf[i].offset.mp[0].scanline = p_input->height;
     p_params->src_main_buf[i].offset.mp[1].len = size >> 1;
 
+    /* src buffer config*/
+    p_params->src_thumb_buf[i].buf_size = p_obj->input[i].size;
+    p_params->src_thumb_buf[i].buf_vaddr = p_obj->input[i].addr;
+    p_params->src_thumb_buf[i].fd = p_obj->input[i].p_pmem_fd;
+    p_params->src_thumb_buf[i].index = i;
+    p_params->src_thumb_buf[i].format = MM_JPEG_FMT_YUV;
+    p_params->src_thumb_buf[i].offset.mp[0].len = size;
+    p_params->src_thumb_buf[i].offset.mp[0].stride = p_input->width;
+    p_params->src_thumb_buf[i].offset.mp[0].scanline = p_input->height;
+    p_params->src_thumb_buf[i].offset.mp[1].len = size >> 1;
 
 
     i++;
-  } while((++p_input)->filename);
+  } while((++p_in)->filename);
 
   p_obj->num_bufs = i;
 
@@ -254,8 +309,8 @@ static int encode_init(jpeg_test_input_t *p_input, mm_jpeg_intf_test_t *p_obj)
   /* set encode parameters */
   p_params->jpeg_cb = mm_jpeg_encode_callback;
   p_params->userdata = p_obj;
-  p_params->color_format = MM_JPEG_COLOR_FORMAT_YCRCBLP_H2V2;
-  p_params->thumb_color_format = MM_JPEG_COLOR_FORMAT_YCRCBLP_H2V2;
+  p_params->color_format = p_input->col_fmt.fmt;
+  p_params->thumb_color_format = p_input->col_fmt.fmt;
 
   if (p_obj->min_out_bufs) {
     p_params->num_dst_bufs = 2;
@@ -279,10 +334,15 @@ static int encode_init(jpeg_test_input_t *p_input, mm_jpeg_intf_test_t *p_obj)
 
 
   p_params->num_src_bufs = p_obj->num_bufs;
+  p_params->num_tmb_bufs = 0;
   g_count = p_params->num_src_bufs;
 
-  p_params->encode_thumbnail = 0;
-  p_params->quality = 80;
+  p_params->encode_thumbnail = p_input->encode_thumbnail;
+  if (p_params->encode_thumbnail) {
+      p_params->num_tmb_bufs = p_obj->num_bufs;
+  }
+  p_params->quality = p_input->main_quality;
+  p_params->thumb_quality = p_input->thumb_quality;
 
   p_job_params->dst_index = 0;
   p_job_params->src_index = 0;
@@ -303,17 +363,30 @@ static int encode_init(jpeg_test_input_t *p_input, mm_jpeg_intf_test_t *p_obj)
   /* thumb dimension */
   p_job_params->thumb_dim.src_dim.width = p_obj->width;
   p_job_params->thumb_dim.src_dim.height = p_obj->height;
-  p_job_params->thumb_dim.dst_dim.width = 512;
-  p_job_params->thumb_dim.dst_dim.height = 384;
+  p_job_params->thumb_dim.dst_dim.width = p_input->tmb_width;
+  p_job_params->thumb_dim.dst_dim.height = p_input->tmb_height;
   p_job_params->thumb_dim.crop.top = 0;
   p_job_params->thumb_dim.crop.left = 0;
-  p_job_params->thumb_dim.crop.width = p_obj->width;
-  p_job_params->thumb_dim.crop.height = p_obj->height;
+  p_job_params->thumb_dim.crop.width = 0;
+  p_job_params->thumb_dim.crop.height = 0;
 
   p_params->thumb_dim  = p_job_params->thumb_dim;
 
   p_job_params->exif_info.numOfEntries = 0;
   p_params->burst_mode = burst_mode;
+
+  /* Qtable */
+  p_job_params->qtable[0].eQuantizationTable =
+    OMX_IMAGE_QuantizationTableLuma;
+  p_job_params->qtable[1].eQuantizationTable =
+    OMX_IMAGE_QuantizationTableChroma;
+  p_job_params->qtable_set[0] = 1;
+  p_job_params->qtable_set[1] = 1;
+
+  for (i = 0; i < QUANT_SIZE; i++) {
+    p_job_params->qtable[0].nQuantizationMatrix[i] = DEFAULT_QTABLE_0[i];
+    p_job_params->qtable[1].nQuantizationMatrix[i] = DEFAULT_QTABLE_1[i];
+  }
 
   return 0;
 }
@@ -333,16 +406,14 @@ static int encode_test(jpeg_test_input_t *p_input)
 
   mm_dimension pic_size;
   memset(&pic_size, 0, sizeof(mm_dimension));
-  pic_size.w = 4000;
-  pic_size.h = 3000;
-
+  pic_size.w = p_input->width;
+  pic_size.h = p_input->height;
 
   jpeg_obj.handle = jpeg_open(&jpeg_obj.ops, pic_size);
   if (jpeg_obj.handle == 0) {
     CDBG_ERROR("%s:%d] Error",__func__, __LINE__);
     goto end;
   }
-
 
   rc = jpeg_obj.ops.create_session(jpeg_obj.handle, &jpeg_obj.params,
     &jpeg_obj.job.encode_job.session_id);
@@ -351,12 +422,12 @@ static int encode_test(jpeg_test_input_t *p_input)
     goto end;
   }
 
-
-
   for (i = 0; i < jpeg_obj.num_bufs; i++) {
     jpeg_obj.job.job_type = JPEG_JOB_TYPE_ENCODE;
     jpeg_obj.job.encode_job.src_index = i;
     jpeg_obj.job.encode_job.dst_index = i;
+    jpeg_obj.job.encode_job.thumb_index = i;
+
     if (jpeg_obj.params.burst_mode && jpeg_obj.min_out_bufs) {
       jpeg_obj.job.encode_job.dst_index = -1;
     }
@@ -387,11 +458,11 @@ end:
     if (!jpeg_obj.min_out_bufs) {
       // Save output files
       CDBG_ERROR("%s:%d] Saving file%s addr %p len %d",
-              __func__, __LINE__,jpeg_obj.out_filename[i],
-              jpeg_obj.output[i].addr, jpeg_obj.buf_filled_len[i]);
+          __func__, __LINE__,jpeg_obj.out_filename[i],
+          jpeg_obj.output[i].addr, jpeg_obj.buf_filled_len[i]);
 
       DUMP_TO_FILE(jpeg_obj.out_filename[i], jpeg_obj.output[i].addr,
-              jpeg_obj.buf_filled_len[i]);
+        jpeg_obj.buf_filled_len[i]);
     }
     mm_jpeg_test_free(&jpeg_obj.input[i]);
     mm_jpeg_test_free(&jpeg_obj.output[i]);
@@ -399,20 +470,7 @@ end:
   return 0;
 }
 
-/** mm_jpeg_test_get_input:
- *
- *  Arguments:
- *    @argc
- *    @argv
- *    @p_test
- *
- *  Return:
- *       0 or 1 values
- *
- *  Description:
- *       Parse input options
- *
- **/
+#define MAX_FILE_CNT (20)
 static int mm_jpeg_test_get_input(int argc, char *argv[],
     jpeg_test_input_t *p_test)
 {
@@ -423,7 +481,7 @@ static int mm_jpeg_test_get_input(int argc, char *argv[],
   char *in_files[MAX_FILE_CNT];
   char *out_files[MAX_FILE_CNT];
 
-  while ((c = getopt(argc, argv, "-I:O:W:H:B")) != -1) {
+  while ((c = getopt(argc, argv, "-I:O:W:H:F:BTx:y:Q:q:")) != -1) {
     switch (c) {
     case 'B':
       fprintf(stderr, "%-25s\n", "Using burst mode");
@@ -457,9 +515,33 @@ static int mm_jpeg_test_get_input(int argc, char *argv[],
       p_test->height = atoi(optarg);
       fprintf(stderr, "%-25s%d\n", "Height: ", p_test->height);
       break;
+    case 'F':
+      p_test->col_fmt = color_formats[atoi(optarg)];
+      fprintf(stderr, "%-25s%s\n", "Format: ", p_test->col_fmt.str);
+      break;
     case 'M':
       p_test->min_out_bufs = 1;
       fprintf(stderr, "%-25s\n", "Using minimum number of output buffers");
+      break;
+    case 'T':
+      p_test->encode_thumbnail = 1;
+      fprintf(stderr, "%-25s\n", "Encode thumbnail");
+      break;
+    case 'x':
+      p_test->tmb_width = atoi(optarg);
+      fprintf(stderr, "%-25s%d\n", "Tmb Width: ", p_test->tmb_width);
+      break;
+    case 'y':
+      p_test->tmb_height = atoi(optarg);
+      fprintf(stderr, "%-25s%d\n", "Tmb Height: ", p_test->tmb_height);
+      break;
+    case 'Q':
+      p_test->main_quality = atoi(optarg);
+      fprintf(stderr, "%-25s%d\n", "Main quality: ", p_test->main_quality);
+      break;
+    case 'q':
+      p_test->thumb_quality = atoi(optarg);
+      fprintf(stderr, "%-25s%d\n", "Thumb quality: ", p_test->thumb_quality);
       break;
     default:;
     }
@@ -492,17 +574,6 @@ static int mm_jpeg_test_get_input(int argc, char *argv[],
   return 0;
 }
 
-/** mm_jpeg_test_print_usage:
- *
- *  Arguments:
- *
- *  Return:
- *       None
- *
- *  Description:
- *       Print tool usage
- *
- **/
 static void mm_jpeg_test_print_usage()
 {
   fprintf(stderr, "Usage: program_name [options]\n");
@@ -511,10 +582,22 @@ static void mm_jpeg_test_print_usage()
   fprintf(stderr, "  -O FILE1 [FILE2] [FILEN]\tList of output files\n");
   fprintf(stderr, "  -W WIDTH\t\tOutput image width\n");
   fprintf(stderr, "  -H HEIGHT\t\tOutput image height\n");
+  fprintf(stderr, "  -F \t\tColor format: \n");
+  fprintf(stderr, "\t\t\t\t%s (0), %s (1), %s (2) %s (3)\n"
+      "\t\t\t\t%s (4), %s (5), %s (6) %s (7)\n ",
+      color_formats[0].str, color_formats[1].str,
+      color_formats[2].str, color_formats[3].str,
+      color_formats[4].str, color_formats[5].str,
+      color_formats[6].str, color_formats[7].str);
   fprintf(stderr, "Optional:\n");
-  fprintf(stderr, "  -B \t\tBurst mode. Utilize both encoder engines on supported targets\n");
+  fprintf(stderr, "  -T \t\Encode thumbnail\n");
+  fprintf(stderr, "  -x TMB_WIDTH\t\tThumbnail width\n");
+  fprintf(stderr, "  -y TMB_HEIGHT\t\tThumbnail height\n");
+  fprintf(stderr, "  -Q MAIN_QUALITY\t\tMain image quality\n");
+  fprintf(stderr, "  -q TMB_QUALITY\t\tThumbnail image quality\n");
+  fprintf(stderr, "  -B \t\tBurst mode. Utilize both encoder engines on"
+          "supported targets\n");
   fprintf(stderr, "  -M \t\tUse minimum number of output buffers \n");
-
   fprintf(stderr, "\n");
 }
 
@@ -533,7 +616,7 @@ static void mm_jpeg_test_print_usage()
  **/
 int main(int argc, char* argv[])
 {
-  jpeg_test_input_t *p_test_input = &jpeg_input[0];
+  jpeg_test_input_t *p_test_input;
   int ret = 0;
   if (argc > 1) {
     p_test_input = calloc(2, sizeof(*p_test_input));
@@ -541,6 +624,7 @@ int main(int argc, char* argv[])
       CDBG_ERROR("%s:%d] Error",__func__, __LINE__);
       goto exit;
     }
+    memcpy(p_test_input, &jpeg_input[0], sizeof(*p_test_input));
     ret = mm_jpeg_test_get_input(argc, argv, p_test_input);
     if (ret) {
       CDBG_ERROR("%s:%d] Error",__func__, __LINE__);

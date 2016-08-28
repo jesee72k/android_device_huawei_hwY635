@@ -103,9 +103,6 @@ public:
     bool isDeffered() const { return mDefferedAllocation; }
     void deleteStream();
 
-    uint8_t getBufferCount() { return mNumBufs; }
-    uint32_t getChannelHandle() { return mChannelHandle; }
-
     int mDumpFrame;
     int mDumpMetaFrame;
     int mDumpSkipCnt;

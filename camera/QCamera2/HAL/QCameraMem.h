@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2013, The Linux Foundataion. All rights reserved.
+/* Copyright (c) 2012-2015, The Linux Foundataion. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,6 +33,7 @@
 #include <hardware/camera.h>
 #include <utils/Mutex.h>
 #include <utils/List.h>
+#include <qdMetaData.h>
 
 extern "C" {
 #include <sys/types.h>
@@ -55,7 +56,7 @@ public:
     int getSize(int index) const;
     int getCnt() const;
 
-    virtual int allocate(int count, int size) = 0;
+    virtual int allocate(int count, int size, uint32_t is_secure) = 0;
     virtual void deallocate() = 0;
     virtual int allocateMore(int count, int size) = 0;
     virtual int cacheOps(int index, unsigned int cmd) = 0;
@@ -85,12 +86,13 @@ protected:
         int heap_id;
     };
 
-    int alloc(int count, int size, int heap_id);
+    int alloc(int count, int size, int heap_id, uint32_t is_secure);
     void dealloc();
     static int allocOneBuffer(struct QCameraMemInfo &memInfo,
                               int heap_id,
                               int size,
-                              bool cached);
+                              bool cached,
+                              uint32_t is_secure);
     static void deallocOneBuffer(struct QCameraMemInfo &memInfo);
     int cacheOpsInternal(int index, unsigned int cmd, void *vaddr);
 
@@ -112,7 +114,8 @@ public:
                        int heap_id,
                        int size,
                        bool cached,
-                       cam_stream_type_t streamType);
+                       cam_stream_type_t streamType,
+                       int is_secure);
     void releaseBuffer(struct QCameraMemory::QCameraMemInfo &memInfo,
                        cam_stream_type_t streamType);
     void clear();
@@ -136,7 +139,7 @@ public:
     QCameraHeapMemory(bool cached);
     virtual ~QCameraHeapMemory();
 
-    virtual int allocate(int count, int size);
+    virtual int allocate(int count, int size, uint32_t is_secure);
     virtual int allocateMore(int count, int size);
     virtual void deallocate();
     virtual int cacheOps(int index, unsigned int cmd);
@@ -159,7 +162,7 @@ public:
                         cam_stream_type_t streamType = CAM_STREAM_TYPE_DEFAULT);
     virtual ~QCameraStreamMemory();
 
-    virtual int allocate(int count, int size);
+    virtual int allocate(int count, int size, uint32_t is_secure);
     virtual int allocateMore(int count, int size);
     virtual void deallocate();
     virtual int cacheOps(int index, unsigned int cmd);
@@ -180,7 +183,7 @@ public:
     QCameraVideoMemory(camera_request_memory getMemory, bool cached);
     virtual ~QCameraVideoMemory();
 
-    virtual int allocate(int count, int size);
+    virtual int allocate(int count, int size, uint32_t is_secure);
     virtual int allocateMore(int count, int size);
     virtual void deallocate();
     virtual camera_memory_t *getMemory(int index, bool metadata) const;
@@ -202,7 +205,7 @@ public:
     void setNativeWindow(preview_stream_ops_t *anw);
     virtual ~QCameraGrallocMemory();
 
-    virtual int allocate(int count, int size);
+    virtual int allocate(int count, int size, uint32_t is_secure);
     virtual int allocateMore(int count, int size);
     virtual void deallocate();
     virtual int cacheOps(int index, unsigned int cmd);
@@ -227,6 +230,7 @@ private:
     camera_request_memory mGetMemory;
     camera_memory_t *mCameraMemory[MM_CAMERA_MAX_NUM_FRAMES];
     int mMinUndequeuedBuffers;
+    enum ColorSpace_t mColorSpace;
 };
 
 }; // namespace qcamera

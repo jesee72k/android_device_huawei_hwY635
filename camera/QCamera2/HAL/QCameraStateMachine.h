@@ -86,7 +86,6 @@ typedef enum {
     QCAMERA_SM_EVT_SNAPSHOT_DONE,            // internal evt that snapshot is done
     QCAMERA_SM_EVT_THERMAL_NOTIFY,           // evt notify from thermal daemon
     QCAMERA_SM_EVT_STOP_CAPTURE_CHANNEL,     // stop capture channel
-    QCAMERA_SM_EVT_RESTART_PERVIEW,          // internal preview restart
     QCAMERA_SM_EVT_MAX
 } qcamera_sm_evt_enum_t;
 
@@ -143,7 +142,7 @@ typedef enum {
     QCAMERA_INTERNAL_EVT_HISTOGRAM_STATS,    // histogram
     QCAMERA_INTERNAL_EVT_CROP_INFO,          // crop info
     QCAMERA_INTERNAL_EVT_ASD_UPDATE,         // asd update result
-    QCAMERA_INTERNAL_EVT_AWB_UPDATE,         // awb update result
+    QCAMERA_INTERNAL_EVT_READY_FOR_SNAPSHOT, // Ready for Prepare Snapshot
     QCAMERA_INTERNAL_EVT_MAX
 } qcamera_internal_evt_type_t;
 
@@ -156,7 +155,6 @@ typedef struct {
         cam_hist_stats_t stats_data;
         cam_crop_data_t crop_data;
         cam_auto_scene_t asd_data;
-        cam_awb_params_t awb_data;
     };
 } qcamera_sm_internal_evt_payload_t;
 
@@ -169,8 +167,12 @@ public:
     int32_t procEvt(qcamera_sm_evt_enum_t evt, void *evt_payload);
 
     bool isPreviewRunning(); // check if preview is running
+    bool isPreviewReady(); // check if preview is ready
     bool isCaptureRunning(); // check if image capture is running
     bool isNonZSLCaptureRunning(); // check if image capture is running in non ZSL mode
+    String8 dump(); //returns the state information in a string
+    bool isPrepSnapStateRunning();
+    bool isRecording();
 
 private:
     typedef enum {
@@ -218,7 +220,6 @@ private:
     QCameraQueue evt_queue;               // cmd queue for evt from mm-camera-intf/mm-jpeg-intf
     pthread_t cmd_pid;                    // cmd thread ID
     cam_semaphore_t cmd_sem;              // semaphore for cmd thread
-
 };
 
 }; // namespace qcamera

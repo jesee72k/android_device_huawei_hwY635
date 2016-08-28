@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -91,6 +91,8 @@ typedef struct {
     uint32_t camera_handle;
     uint32_t ch_id;
     uint8_t num_bufs;
+    uint8_t bUnlockAEC;
+    uint8_t bReadyForPrepareSnapshot;
     mm_camera_buf_def_t* bufs[MAX_STREAM_NUM_IN_BUNDLE];
 } mm_camera_super_buf_t;
 
@@ -304,6 +306,16 @@ typedef struct {
      **/
     int32_t (*close_camera) (uint32_t camera_handle);
 
+
+    /** error_close_camera: function definition for closing
+     *                      the camera backend on an unrecoverable
+     *                      error
+     *    @camera_handle : camera handler
+     *  Return value: 0 -- success
+     *                -1 -- failure
+     **/
+    int32_t (*error_close_camera) (uint32_t camera_handle);
+
     /** map_buf: fucntion definition for mapping a camera buffer
      *           via domain socket
      *    @camera_handle : camer handler
@@ -346,7 +358,7 @@ typedef struct {
      *       buf before this call
      **/
     int32_t (*set_parms) (uint32_t camera_handle,
-                          void *parms);
+                          parm_buffer_t *parms);
 
     /** get_parms: fucntion definition for querying camera
      *             based parameters from server
@@ -360,7 +372,7 @@ typedef struct {
      *       the buf before this call
      **/
     int32_t (*get_parms) (uint32_t camera_handle,
-                          void *parms);
+                          parm_buffer_t *parms);
 
     /** do_auto_focus: fucntion definition for performing auto focus
      *    @camera_handle : camer handler
@@ -463,19 +475,6 @@ typedef struct {
     int32_t (*delete_stream) (uint32_t camera_handle,
                               uint32_t ch_id,
                               uint32_t stream_id);
-
-    /** link_stream: function definition for linking a stream
-     *    @camera_handle : camera handle
-     *    @ch_id : channel handle from which the stream originates
-     *    @stream_id : stream handle
-     *    @linked_ch_id: channel handle in which the stream will be linked
-     *  Return value: 0 -- success
-     *                -1 -- failure
-     **/
-    int32_t (*link_stream) (uint32_t camera_handle,
-          uint32_t ch_id,
-          uint32_t stream_id,
-          uint32_t linked_ch_id);
 
     /** config_stream: fucntion definition for configuring a stream
      *    @camera_handle : camer handler
@@ -611,12 +610,14 @@ typedef struct {
      *    @camera_handle : camer handler
      *    @ch_id : channel handler
      *    @num_buf_requested : number of super buffers requested
+     *    @num_retro_buf_requested : number of retro buffers requested
      *  Return value: 0 -- success
      *                -1 -- failure
      **/
     int32_t (*request_super_buf) (uint32_t camera_handle,
                                   uint32_t ch_id,
-                                  uint32_t num_buf_requested);
+                                  uint32_t num_buf_requested,
+                                  uint32_t num_retro_buf_requested);
 
     /** cancel_super_buf_request: fucntion definition for canceling
      *                     frames dispatched from superbuf queue in
@@ -686,7 +687,6 @@ uint8_t get_num_of_cameras();
 
 /* return reference pointer of camera vtbl */
 mm_camera_vtbl_t * camera_open(uint8_t camera_idx);
-struct camera_info *get_cam_info(int camera_id);
 
 /* helper functions */
 int32_t mm_stream_calc_offset_preview(cam_format_t fmt,
@@ -718,4 +718,5 @@ int32_t mm_stream_calc_offset_postproc(cam_stream_info_t *stream_info,
         cam_padding_info_t *padding,
         cam_stream_buf_plane_info_t *buf_planes);
 
+struct camera_info *get_cam_info(int camera_id);
 #endif /*__MM_CAMERA_INTERFACE_H__*/

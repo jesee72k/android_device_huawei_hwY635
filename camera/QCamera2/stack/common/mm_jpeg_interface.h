@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012, 2014, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -34,61 +34,17 @@
 
 #define MM_JPEG_MAX_PLANES 3
 #define MM_JPEG_MAX_BUF CAM_MAX_NUM_BUFS_PER_STREAM
-#define MAX_AF_STATS_DATA_SIZE 1000
+#define QUANT_SIZE 64
+#define QTABLE_MAX 2
 
 typedef enum {
   MM_JPEG_FMT_YUV,
   MM_JPEG_FMT_BITSTREAM
 } mm_jpeg_format_t;
 
-typedef enum {
-   FLASH_NOT_FIRED,
-   FLASH_FIRED
-}exif_flash_fired_sate_t;
-
-typedef enum {
-   NO_STROBE_RETURN_DETECT = 0x00,
-   STROBE_RESERVED = 0x01,
-   STROBE_RET_LIGHT_NOT_DETECT = 0x02,
-   STROBE_RET_LIGHT_DETECT = 0x03
-}exif_strobe_state_t;
-
-typedef enum {
-   CAMERA_FLASH_UNKNOWN = 0x00,
-   CAMERA_FLASH_COMPULSORY = 0x08,
-   CAMERA_FLASH_SUPRESSION = 0x10,
-   CAMERA_FLASH_AUTO = 0x18
-}exif_flash_mode_t;
-
-typedef enum {
-   FLASH_FUNC_PRESENT = 0x00,
-   NO_FLASH_FUNC = 0x20
-}exif_flash_func_pre_t;
-
-typedef enum {
-   NO_REDEYE_MODE = 0x00,
-   REDEYE_MODE = 0x40
-}exif_redeye_t;
-
 typedef struct {
-  cam_ae_params_t ae_params;
-  cam_auto_focus_data_t af_params;
-  uint8_t af_mobicat_params[MAX_AF_STATS_DATA_SIZE];
-  cam_awb_params_t awb_params;
-  cam_ae_exif_debug_t ae_debug_params;
-  cam_awb_exif_debug_t awb_debug_params;
-  cam_af_exif_debug_t af_debug_params;
-  cam_asd_exif_debug_t asd_debug_params;
-  cam_stats_buffer_exif_debug_t stats_debug_params;
-  uint8_t ae_debug_params_valid;
-  uint8_t awb_debug_params_valid;
-  uint8_t af_debug_params_valid;
-  uint8_t asd_debug_params_valid;
-  uint8_t stats_debug_params_valid;
+  cam_3a_params_t cam_3a_params;
   cam_sensor_params_t sensor_params;
-  cam_flash_mode_t ui_flash_mode;
-  exif_flash_func_pre_t flash_presence;
-  exif_redeye_t red_eye;
 } mm_jpeg_exif_params_t;
 
 typedef struct {
@@ -176,7 +132,17 @@ typedef struct {
   /* jpeg quality: range 0~100 */
   uint32_t quality;
 
+  /* jpeg thumbnail quality: range 0~100 */
+  uint32_t thumb_quality;
+
+  /* buf to exif entries, caller needs to
+   * take care of the memory manage with insider ptr */
+  QOMX_EXIF_INFO exif_info;
+
+  /*Callback registered to be called after encode*/
   jpeg_encode_callback_t jpeg_cb;
+
+  /*Appdata passed by the user*/
   void* userdata;
 
   /* thumbnail dimension */
@@ -193,6 +159,9 @@ typedef struct {
 
   /* enable encoder burst mode */
   int8_t burst_mode;
+
+  /*jpeg orientation information*/
+  int jpeg_orientation;
 
   /* get memory function ptr */
   int (*get_memory)( omx_jpeg_ouput_buf_t *p_out_buf);
@@ -236,7 +205,10 @@ typedef struct {
   uint32_t session_id;
 
   /*Metadata stream*/
-  cam_metadata_info_t *p_metadata;
+  metadata_buffer_t *p_metadata;
+
+  /*HAL version*/
+  cam_hal_version_t hal_version;
 
   /* buf to exif entries, caller needs to
    * take care of the memory manage with insider ptr */
@@ -245,6 +217,9 @@ typedef struct {
   /* 3a parameters */
   mm_jpeg_exif_params_t cam_exif_params;
 
+  /* jpeg encoder QTable */
+  uint8_t qtable_set[QTABLE_MAX];
+  OMX_IMAGE_PARAM_QUANTIZATIONTABLETYPE qtable[QTABLE_MAX];
 } mm_jpeg_encode_job_t;
 
 typedef struct {

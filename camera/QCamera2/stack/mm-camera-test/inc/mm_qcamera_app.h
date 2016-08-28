@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -233,7 +233,7 @@ typedef struct {
     int zsl_enabled;
     int8_t focus_supported;
     prev_callback user_preview_cb;
-    parm_buffer_new_t *params_buffer;
+    parm_buffer_t *params_buffer;
     USER_INPUT_DISPLAY_T preview_resolution;
 
     //Reprocess params&stream
@@ -243,7 +243,7 @@ typedef struct {
     int8_t enable_CAC;
     mm_camera_queue_t pp_frames;
     mm_camera_stream_t *reproc_stream;
-    cam_metadata_info_t *metadata;
+    metadata_buffer_t *metadata;
     int8_t is_chromatix_reload;
     tune_chromatix_t tune_data;
 } mm_camera_test_obj_t;

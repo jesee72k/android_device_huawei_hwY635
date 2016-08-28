@@ -123,8 +123,8 @@ int32_t QCameraStream::get_bufs_deffered(
  *              none-zero failure code
  *==========================================================================*/
 int32_t QCameraStream::put_bufs(
-        mm_camera_map_unmap_ops_tbl_t *ops_tbl,
-        void *user_data)
+                     mm_camera_map_unmap_ops_tbl_t *ops_tbl,
+                     void *user_data)
 {
     QCameraStream *stream = reinterpret_cast<QCameraStream *>(user_data);
     if (!stream) {
@@ -148,8 +148,8 @@ int32_t QCameraStream::put_bufs(
  *              none-zero failure code
  *==========================================================================*/
 int32_t QCameraStream::put_bufs_deffered(
-                     mm_camera_map_unmap_ops_tbl_t * /*ops_tbl */,
-                     void * /*user_data*/ )
+        mm_camera_map_unmap_ops_tbl_t * /*ops_tbl */,
+        void * /*user_data*/ )
 {
     // No op
     // Used for handling buffers with deffered allocation. They are freed separately.
@@ -176,7 +176,10 @@ int32_t QCameraStream::invalidate_buf(int index, void *user_data)
         ALOGE("invalid stream pointer");
         return NO_MEMORY;
     }
-    return stream->invalidateBuf(index);
+    if (stream->mStreamInfo->is_secure != SECURE)
+        return stream->invalidateBuf(index);
+
+    return 0;
 }
 
 /*===========================================================================
@@ -199,7 +202,11 @@ int32_t QCameraStream::clean_invalidate_buf(int index, void *user_data)
         ALOGE("invalid stream pointer");
         return NO_MEMORY;
     }
-    return stream->cleanInvalidateBuf(index);
+
+    if (stream->mStreamInfo->is_secure != SECURE)
+        return stream->cleanInvalidateBuf(index);
+
+    return 0;
 }
 
 /*===========================================================================
@@ -459,7 +466,7 @@ int32_t QCameraStream::calcOffset(cam_stream_info_t *streamInfo)
     int32_t rc = 0;
 
     cam_dimension_t dim = streamInfo->dim;
-    if (streamInfo->pp_config.feature_mask & CAM_QCOM_FEATURE_CPP &&
+    if (streamInfo->pp_config.feature_mask & CAM_QCOM_FEATURE_ROTATION &&
             streamInfo->stream_type != CAM_STREAM_TYPE_VIDEO) {
         if (streamInfo->pp_config.rotation == ROTATE_90 ||
                 streamInfo->pp_config.rotation == ROTATE_270) {
@@ -530,6 +537,7 @@ int32_t QCameraStream::calcOffset(cam_stream_info_t *streamInfo)
 int32_t QCameraStream::start()
 {
     int32_t rc = 0;
+    mDataQ.init();
     rc = mProcTh.launch(dataProcRoutine, this);
     if (rc == NO_ERROR) {
         m_bActive = true;
@@ -614,7 +622,7 @@ int32_t QCameraStream::processZoomDone(preview_stream_ops_t *previewWindow,
     int32_t rc = 0;
 
     if (!m_bActive) {
-        CDBG("%s : Stream not active", __func__);
+        ALOGV("%s : Stream not active", __func__);
         return NO_ERROR;
     }
 
@@ -656,11 +664,10 @@ int32_t QCameraStream::processZoomDone(preview_stream_ops_t *previewWindow,
 int32_t QCameraStream::processDataNotify(mm_camera_super_buf_t *frame)
 {
     CDBG("%s:\n", __func__);
-    if (m_bActive) {
-        mDataQ.enqueue((void *)frame);
+    if (mDataQ.enqueue((void *)frame)) {
         return mProcTh.sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE, FALSE);
     } else {
-        CDBG("%s: Stream thread is not active, no ops here", __func__);
+        CDBG_HIGH("%s: Stream thread is not active, no ops here", __func__);
         bufDone(frame->bufs[0]->buf_idx);
         free(frame);
         return NO_ERROR;
@@ -737,7 +744,7 @@ void *QCameraStream::dataProcRoutine(void *data)
         switch (cmd) {
         case CAMERA_CMD_TYPE_DO_NEXT_JOB:
             {
-                CDBG("%s: Do next job", __func__);
+                CDBG_HIGH("%s: Do next job", __func__);
                 mm_camera_super_buf_t *frame =
                     (mm_camera_super_buf_t *)pme->mDataQ.dequeue();
                 if (NULL != frame) {
@@ -752,7 +759,7 @@ void *QCameraStream::dataProcRoutine(void *data)
             }
             break;
         case CAMERA_CMD_TYPE_EXIT:
-            CDBG("%s: Exit", __func__);
+            CDBG_HIGH("%s: Exit", __func__);
             /* flush data buf queue */
             pme->mDataQ.flush();
             running = 0;
@@ -761,7 +768,7 @@ void *QCameraStream::dataProcRoutine(void *data)
             break;
         }
     } while (running);
-    CDBG("%s: X", __func__);
+    CDBG_HIGH("%s: X", __func__);
     return NULL;
 }
 
@@ -1085,7 +1092,7 @@ int32_t QCameraStream::releaseBuffs()
         }
 
         // mBufDefs just keep a ptr to the buffer
-        // mm-camera-interface owns the buffer, so no need to free
+        // mm-camera-interface own the buffer, so no need to free
         mBufDefs = NULL;
         memset(&mFrameLenOffset, 0, sizeof(mFrameLenOffset));
     }
@@ -1170,12 +1177,10 @@ void QCameraStream::cond_signal()
 void QCameraStream::cond_wait()
 {
     pthread_mutex_lock(&m_lock);
-    if(wait_for_cond == TRUE){
-        pthread_mutex_unlock(&m_lock);
+    while (wait_for_cond == TRUE) {
         pthread_cond_wait(&m_cond, &m_lock);
-    }else{
-        pthread_mutex_unlock(&m_lock);
     }
+    pthread_mutex_unlock(&m_lock);
 }
 
 /*===========================================================================
@@ -1547,12 +1552,6 @@ int32_t QCameraStream::setParameter(cam_stream_parm_buffer_t &param)
 int32_t QCameraStream::getParameter(cam_stream_parm_buffer_t &param)
 {
     int32_t rc = NO_ERROR;
-
-    if (!m_bActive) {
-        ALOGE("%s : Stream not stopped!", __func__);
-        return NO_INIT;
-    }
-
     pthread_mutex_lock(&mParameterLock);
     mStreamInfo->parm_buf = param;
     rc = mCamOps->get_stream_parms(mCamHandle,
