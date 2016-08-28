@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2016 The CyanogenMod Project
+# Copyright (C) 2015 The CyanogenMod Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -126,10 +126,6 @@ PRODUCT_PACKAGES += \
     libmmjpeg_interface \
     libmm-omxcore \
     libqomx_core
-
-# Snap Camera
-PRODUCT_PACKAGES += \
-    Snap
 
 # Charger
 PRODUCT_PACKAGES += \
@@ -261,8 +257,7 @@ PRODUCT_PROPERTY_OVERRIDES += \
     dalvik.vm.heapstartsize=14m \
     persist.radio.no_wait_for_card=1 \
     persist.radio.apm_sim_not_pwdn=1 \
-    persist.radio.sib16_support=1 \
-    ro.sf.lcd_density=230
+    persist.radio.sib16_support=1 
 
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
     persist.sys.usb.config=mtp \
