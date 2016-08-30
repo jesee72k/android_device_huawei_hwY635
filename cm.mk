@@ -23,3 +23,6 @@ $(call inherit-product, vendor/cm/config/common_full_phone.mk)
 
 PRODUCT_NAME := cm_hwY635
 PRODUCT_DEVICE := hwY635
+
+PRODUCT_BUILD_PROP_OVERRIDES += \
+PRODUCT_NAME="Huawei Y635 LTE"
