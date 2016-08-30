@@ -14,3 +14,5 @@ Storage | 8GB
 MicroSD | Upto 32 GB
 Battery | 2000 mAh
 Camera  | 5 MP, 2592 х 1944 pixels
+
+Copyright 2016 - The CyanogenMod Project.
