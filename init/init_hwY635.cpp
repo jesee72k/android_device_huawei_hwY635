@@ -77,6 +77,14 @@ void vendor_load_properties()
         property_set("ro.build.product", "Y635-L03");
         property_set("ro.telephony.default_network", "9");
     }
+    /* Y635-L11 */
+    else if (buf.find("Y635-L03") != std::string::npos) {
+        property_set("ro.product.model", "Y635-L11");
+        property_set("ro.product.name", "Y635-L11");
+        property_set("ro.product.device", "Y635-L11");
+        property_set("ro.build.product", "Y635-L11");
+        property_set("ro.telephony.default_network", "9");
+    }
     /* Y635-L21 */
     else if (buf.find("Y635-L21") != std::string::npos) {
         property_set("ro.product.model", "Y635-L21");

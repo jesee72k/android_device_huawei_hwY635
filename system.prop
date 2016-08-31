@@ -113,4 +113,3 @@ ro.config.hw_camera_mfd=true
 persist.camera.longshot.enable=true
 ro.config.camerarc=true
 persist.camera.pip.support=0
-persist.camera.hal.debug.mask=0
