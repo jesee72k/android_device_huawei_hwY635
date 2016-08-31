@@ -261,7 +261,8 @@ PRODUCT_PROPERTY_OVERRIDES += \
     dalvik.vm.heapstartsize=14m \
     persist.radio.no_wait_for_card=1 \
     persist.radio.apm_sim_not_pwdn=1 \
-    persist.radio.sib16_support=1 
+    persist.radio.sib16_support=1 \
+    ro.sf.lcd_density=220
 
 PRODUCT_DEFAULT_PROPERTY_OVERRIDES += \
     persist.sys.usb.config=mtp \
