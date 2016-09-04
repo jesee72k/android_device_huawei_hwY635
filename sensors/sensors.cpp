@@ -26,9 +26,12 @@
 #include <poll.h>
 #include <pthread.h>
 #include <stdlib.h>
+
 #include <linux/input.h>
+
 #include <utils/Atomic.h>
 #include <utils/Log.h>
+
 #include <CalibrationManager.h>
 
 #include "sensors.h"
@@ -45,10 +48,10 @@
 /*****************************************************************************/
 
 static int open_sensors(const struct hw_module_t* module, const char* id,
-						struct hw_device_t** device);
+			struct hw_device_t** device);
 
-static int sensors__get_sensors_list(struct sensors_module_t*,
-								 struct sensor_t const** list)
+static int sensors__get_sensors_list(struct sensors_module_t* module,
+				     struct sensor_t const** list)
 {
 	NativeSensorManager& sm(NativeSensorManager::getInstance());
 
@@ -56,22 +59,27 @@ static int sensors__get_sensors_list(struct sensors_module_t*,
 }
 
 static struct hw_module_methods_t sensors_module_methods = {
-		open: open_sensors
+		.open = open_sensors
 };
 
+
+
+
+
+
 struct sensors_module_t HAL_MODULE_INFO_SYM = {
-		common: {
-				tag: HARDWARE_MODULE_TAG,
-				version_major: 1,
-				version_minor: 0,
-				id: SENSORS_HARDWARE_MODULE_ID,
-				name: "Quic Sensor module",
-				author: "Quic",
-				methods: &sensors_module_methods,
-				dso: NULL,
-				reserved: {0},
+		.common = {
+				.tag = HARDWARE_MODULE_TAG,
+				.version_major = 1,
+				.version_minor = 0,
+				.id = SENSORS_HARDWARE_MODULE_ID,
+				.name = "Quic Sensor module",
+				.author = "Quic",
+				.methods = &sensors_module_methods,
+				.dso = NULL,
+				.reserved = {0},
 		},
-		get_sensors_list: sensors__get_sensors_list,
+		.get_sensors_list = sensors__get_sensors_list,
 };
 
 struct sensors_poll_context_t {
@@ -237,19 +245,10 @@ int sensors_poll_context_t::batch(int handle, int sample_ns, int latency_ns)
 
 int sensors_poll_context_t::flush(int handle)
 {
-	int ret;
-	const char wakeMessage(WAKE_MESSAGE);
-	int result;
-
 	NativeSensorManager& sm(NativeSensorManager::getInstance());
 	Mutex::Autolock _l(mLock);
 
-	ret = sm.flush(handle);
-
-	result = write(mWritePipeFd, &wakeMessage, 1);
-	ALOGE_IF(result<0, "error sending wake message (%s)", strerror(errno));
-
-	return ret;
+	return sm.flush(handle);
 }
 /*****************************************************************************/
 
@@ -316,8 +315,13 @@ static int open_sensors(const struct hw_module_t* module, const char*,
 
 		dev->device.common.tag = HARDWARE_DEVICE_TAG;
 #if defined(SENSORS_DEVICE_API_VERSION_1_3)
-		ALOGI("Sensors device API version 1.3 supported\n");
-		dev->device.common.version = SENSORS_DEVICE_API_VERSION_1_3;
+		if (sm.supportBatch()) {
+			ALOGI("batching supported!\n");
+			dev->device.common.version = SENSORS_DEVICE_API_VERSION_1_3;
+		} else {
+			ALOGW("batching not supported. Drop down to HAL 0.1\n");
+			dev->device.common.version = SENSORS_DEVICE_API_VERSION_0_1;
+		}
 #else
 		dev->device.common.version = SENSORS_DEVICE_API_VERSION_0_1;
 #endif

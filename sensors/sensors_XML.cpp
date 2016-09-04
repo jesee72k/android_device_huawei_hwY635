@@ -33,17 +33,16 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "unistd.h"
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <private/android_filesystem_config.h>
 
 #define SENSOR_XML_ROOT_ELEMENT "sensors"
 
 ANDROID_SINGLETON_STATIC_INSTANCE(sensors_XML);
 const static char *filepath[] = {
-    "/persist/sensors/sensors_calibration_params.xml",
-    "/data/sensors_calibration_params.xml"
+    "/persist/sensors_calibration_params.xml",
+    "/data/sensors_calibration_param.xml"
 };
 
-const char *sensor_param[] = {"offset_x", "offset_y", "offset_z", "threshold_h", "threshold_l", "bias"};
+char *sensor_param[] = {"offset_x", "offset_y", "offset_z", "threshold_h", "threshold_l", "bias"};
 const char *cal_state[] = {"static","dynamic"};
 sensors_XML :: sensors_XML()
     : mdoc(NULL)
@@ -127,7 +126,6 @@ int sensors_XML :: write_sensors_params(struct sensor_t *sensor, struct cal_resu
     char string[33];
     int fnum = 0;
     int i = 0, j, MAX = 0;
-    int err = 0;
 
     if (state < CAL_STATIC || state > CAL_DYNAMIC) {
         ALOGE("state error\n");
@@ -156,7 +154,7 @@ int sensors_XML :: write_sensors_params(struct sensor_t *sensor, struct cal_resu
         mdoc = xmlNewDoc(BAD_CAST "1.0");
         if (mdoc == NULL) {
             ALOGE("create sensor calibration file error\n");
-            return -1;
+            return -EINVAL;
         }
         newcreate = true;
     }
@@ -167,19 +165,17 @@ int sensors_XML :: write_sensors_params(struct sensor_t *sensor, struct cal_resu
         curNode = xmlNewNode(NULL, BAD_CAST "sensor");
         xmlAddChild(rootNode, curNode);
         xmlNewProp(curNode, BAD_CAST "name", BAD_CAST sensor->name);
-        xmlNewProp(curNode, BAD_CAST "state", BAD_CAST cal_state[state]);
+	xmlNewProp(curNode, BAD_CAST "state", BAD_CAST cal_state[state]);
     } else {
         rootNode = xmlDocGetRootElement(mdoc);
         if (rootNode == NULL) {
             ALOGE("empty document\n");
             xmlFreeDoc(mdoc);
-            return -1;
         }
 
         if (xmlStrcmp(rootNode->name, BAD_CAST SENSOR_XML_ROOT_ELEMENT)) {
             ALOGE("root node != sensors\n");
             xmlFreeDoc(mdoc);
-            return -1;
         }
         curNode = rootNode->xmlChildrenNode;
         while(curNode != NULL) {
@@ -191,7 +187,7 @@ int sensors_XML :: write_sensors_params(struct sensor_t *sensor, struct cal_resu
     }
     switch(sensor->type) {
         case SENSOR_TYPE_ACCELEROMETER:
-        case SENSOR_TYPE_GYROSCOPE:
+	 case SENSOR_TYPE_GYROSCOPE:
             i = 0;
             MAX = 3;
             break;
@@ -207,24 +203,17 @@ int sensors_XML :: write_sensors_params(struct sensor_t *sensor, struct cal_resu
             break;
     }
     if (newcreate) {
-        for(j = 0; i < MAX && j < 3; i++, j++) {
+        for(j = 0; i < MAX; i++, j++) {
             snprintf(string, sizeof(string), "%d", cal_result->offset[j]);
-            value = xmlNewProp(curNode, BAD_CAST sensor_param[i], BAD_CAST string);
-            if (value == NULL) {
-                ALOGE("write value in new create error\n");
-                xmlFreeDoc(mdoc);
-                return -1;
-            }
+            xmlNewProp(curNode, BAD_CAST sensor_param[i], BAD_CAST string);
         }
     } else {
-        if (curNode == NULL) {
+        if(curNode == NULL) {
             curNode = xmlNewNode(NULL, BAD_CAST "sensor");
             xmlAddChild(rootNode, curNode);
             value = xmlNewProp(curNode, BAD_CAST "name", BAD_CAST sensor->name);
             if (value == NULL) {
-                ALOGE("name is NULL\n");
-                xmlFreeDoc(mdoc);
-                return -1;
+                ALOGE("\nname is NULL\n");
             }
             value = xmlNewProp(curNode, BAD_CAST "state", BAD_CAST cal_state[state]);
             if (value == NULL) {
@@ -232,51 +221,22 @@ int sensors_XML :: write_sensors_params(struct sensor_t *sensor, struct cal_resu
                 xmlFreeDoc(mdoc);
                 return -1;
             }
-            for(j = 0; i < MAX && j < 3; i++, j++) {
+            for(j = 0; i < MAX; i++, j++) {
                 snprintf(string, sizeof(string), "%d", cal_result->offset[j]);
-                value = xmlNewProp(curNode, BAD_CAST sensor_param[i], BAD_CAST string);
-                if (value == NULL) {
-                    ALOGE("write value error\n");
-                    xmlFreeDoc(mdoc);
-                    return -1;
-                }
+                xmlNewProp(curNode, BAD_CAST sensor_param[i], BAD_CAST string);
             }
         } else {
-            for(j = 0; i < MAX && j < 3; i++, j++) {
+            for(j = 0; i < MAX; i++, j++) {
                 snprintf(string, sizeof(string), "%d", cal_result->offset[j]);
-                value = xmlSetProp(curNode, BAD_CAST sensor_param[i], BAD_CAST string);
-                if (value == NULL) {
-                    ALOGE("set value error\n");
-                    xmlFreeDoc(mdoc);
-                    return -1;
-                }
+                xmlSetProp(curNode, BAD_CAST sensor_param[i], BAD_CAST string);
             }
         }
     }
     if (xmlSaveFormatFileEnc(filepath[fnum], mdoc, "UTF-8", 1) == -1) {
-        ALOGE("save %s failed %s\n", filepath[fnum], strerror(errno));
-        xmlFreeDoc(mdoc);
-        return -1;
+    ALOGE("save %s failed %s\n", filepath[fnum], strerror(errno));
+    xmlFreeDoc(mdoc);
+    return -1;
     }
-    if (fnum == 0) {
-        if (getuid() != AID_ROOT) {
-            goto exit;
-        }
-        err = chown(filepath[fnum], AID_ROOT, AID_SYSTEM);
-        if (err != 0) {
-            ALOGE("chown %s failed %s", filepath[fnum], strerror(errno));
-            xmlFreeDoc(mdoc);
-            return -1;
-        }
-        err = chmod(filepath[fnum], 0660);
-        if (err != 0) {
-            ALOGE("chmod %s failed %s", filepath[fnum], strerror(errno));
-            xmlFreeDoc(mdoc);
-            return -1;
-        }
-    }
-
-exit:
     xmlFreeDoc(mdoc);
     return 0;
 }
@@ -294,7 +254,7 @@ int sensors_XML :: read_sensors_params(struct sensor_t *sensor, struct cal_resul
         ALOGE("Null pointer parameter\n");
         return -1;
     }
-    if (!access(filepath[1], R_OK)) {
+    if(!access(filepath[1], R_OK)) {
         mdoc = xmlReadFile(filepath[1], "UTF-8" , XML_PARSE_RECOVER);
     } else if (!access(filepath[0], F_OK)){
         int err;
@@ -307,11 +267,11 @@ int sensors_XML :: read_sensors_params(struct sensor_t *sensor, struct cal_resul
         if (!access(filepath[1], R_OK)) {
             mdoc = xmlReadFile(filepath[1], "UTF-8" , XML_PARSE_RECOVER);
         } else {
-            ALOGE("file %s can't read\n", filepath[1]);
+            ALOGE("file can't read\n");
             return -1;
         }
     } else {
-        ALOGE("file %s can't read\n", filepath[0]);
+        ALOGE("file can't read\n");
         return -1;
     }
     rootNode = xmlDocGetRootElement(mdoc);
@@ -335,7 +295,7 @@ int sensors_XML :: read_sensors_params(struct sensor_t *sensor, struct cal_resul
     }
     switch(sensor->type) {
         case SENSOR_TYPE_ACCELEROMETER:
-        case SENSOR_TYPE_GYROSCOPE:
+	case SENSOR_TYPE_GYROSCOPE:
             i = 0;
             MAX = 3;
             break;
@@ -352,19 +312,17 @@ int sensors_XML :: read_sensors_params(struct sensor_t *sensor, struct cal_resul
     }
     if (curNode != NULL) {
         xmlChar* value;
-        for(j = 0; i < MAX && j < 3; i++, j++) {
+        for(j = 0; i < MAX; ++i, ++j) {
             value = xmlGetProp(curNode, BAD_CAST sensor_param[i]);
             if(value != NULL) {
                cal_result->offset[j] = atoi((char*)value);
             }
         }
     } else {
-        for(j = 0; j < 3; j++) {
+        for(j = 0; j < 3; ++j) {
             cal_result->offset[j] = 0;
         }
-        ALOGE("The sensor %s calibrate parameters is not found\n", sensor->name);
-        xmlFreeDoc(mdoc);
-        return -1;
+        ALOGE("The sensor calibrate parameters is not found\n");
     }
     xmlFreeDoc(mdoc);
     return 0;
@@ -373,7 +331,7 @@ int sensors_XML :: read_sensors_params(struct sensor_t *sensor, struct cal_resul
 int sensors_XML :: sensors_calibrate_reset()
 {
     int i;
-    for(i=0; i < 2; i++) {
+    for(i=0; i < 2; ++i) {
         if (access(filepath[i], F_OK)) {
             ALOGE("file is not exits\n");
             return -1;
@@ -389,12 +347,12 @@ int sensors_XML :: sensors_calibrate_reset()
 int sensors_XML :: sensors_rm_file()
 {
 
-    if (access(filepath[1], F_OK)) {
+        if (access(filepath[1], F_OK)) {
+            return 0;
+        }
+        if (remove(filepath[1])) {
+            ALOGE("reset calibrate error\n");
+            return -1;
+        }
         return 0;
-    }
-    if (remove(filepath[1])) {
-        ALOGE("reset calibrate error\n");
-        return -1;
-    }
-    return 0;
 }

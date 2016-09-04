@@ -1,0 +1,8 @@
+allow zygote log_device:chr_file { write open };
+allow zygote input_device:dir read;
+allow zygote input_device:dir open;
+allow zygote input_device:dir search;
+allow zygote input_device:file { read write };
+allow zygote input_device:chr_file { read write };
+allow zygote input_device:chr_file open;
+allow zygote input_device:chr_file ioctl;

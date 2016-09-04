@@ -421,6 +421,7 @@ service qcamerasvr /system/bin/mm-qcamera-daemon
     user camera
     group camera system inet input graphics
     setenv LD_PRELOAD /vendor/lib/libqcamerasvr-c++.so
+    writepid /dev/cpuset/system-background/tasks
 
 #enable zram
 on property:ro.config.zram=true
@@ -444,6 +445,12 @@ service mpdecision /system/bin/mpdecision --avg_comp
    user root
    group system
    disabled
+   writepid /dev/cpuset/system-background/tasks
+
+service perfd /system/vendor/bin/perfd
+   class main
+   user root
+   writepid /dev/cpuset/system-background/tasks
 
 service thermal-engine /system/vendor/bin/thermal-engine
    class main
@@ -850,7 +857,13 @@ on property:drmdiag.load=1
 on property:drmdiag.load=0
     stop drmdiag
 
-service config-zram /system/etc/init.qcom.zram.sh
+service qcom-post-boot /system/bin/sh /init.qcom.post_boot.sh
+    class late_start
+    user root
+    disabled
+    oneshot
+
+service config-zram /system/bin/sh /system/etc/init.qcom.zram.sh
     class late_start
     user root
     disabled
@@ -866,6 +879,7 @@ on property:sys.boot_completed=1
     start qti-testscripts
     start config-zram
     start atfwd
+    restart media
 
 service ds_fmc_appd /system/bin/ds_fmc_appd -p "rmnet0" -D
     class late_start
@@ -900,12 +914,12 @@ service ril-daemon2 /system/bin/rild -c 2
     user root
     group radio cache inet misc audio sdcard_r sdcard_rw qcom_diag log
 
-service ril-daemon3 /system/bin/rild -c 3
-    class main
-    socket rild3 stream 660 root radio
-    socket rild-debug3 stream 660 radio system
-    user root
-    group radio cache inet misc audio sdcard_r sdcard_rw qcom_diag log
+#service ril-daemon3 /system/bin/rild -c 3
+#    class main
+#    socket rild3 stream 660 root radio
+#    socket rild-debug3 stream 660 radio system
+#    user root
+#    group radio cache inet misc audio sdcard_r sdcard_rw qcom_diag log
 
 service profiler_daemon /system/bin/profiler_daemon
     class late_start
@@ -999,10 +1013,11 @@ service fidodaemon /system/vendor/bin/fidodaemon
     user system
     group system
 
-service msm_irqbalance /system/bin/msm_irqbalance -f /system/vendor/etc/msm_irqbalance.conf
+service msm_irqbalance /system/bin/msm_irqbalance 
     class core
     user root
     group root
+    writepid /dev/cpuset/system-background/tasks
 
 # Huawei service
 service test_diag /system/bin/test_diag

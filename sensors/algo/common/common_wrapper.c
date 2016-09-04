@@ -27,6 +27,7 @@ OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --------------------------------------------------------------------------*/
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <CalibrationModule.h>
@@ -469,8 +470,6 @@ static struct sensor_algo_methods_t pocket_methods = {
 };
 
 static const char* pocket_match_table[] = {
-	"ltr553-pocket",
-	"ap3426-pocket",
 	"oem-pocket",
 	NULL
 };

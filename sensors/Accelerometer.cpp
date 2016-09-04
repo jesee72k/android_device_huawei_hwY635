@@ -148,7 +148,6 @@ int AccelSensor::enable(int32_t, int en) {
 			if (flags) {
 				buf[0] = '1';
 				mEnabledTime = getTimestamp() + IGNORE_EVENT_TIME;
-				sysclk_sync_offset = getClkOffset();
 			} else {
 				buf[0] = '0';
 			}
@@ -249,10 +248,11 @@ again:
 						if(mUseAbsTimeStamp != true) {
 							mPendingEvent.timestamp = timevalToNano(event->time);
 						}
-						mPendingEvent.timestamp -= sysclk_sync_offset;
 						if (mEnabled) {
-							*data++ = mPendingEvent;
-							numEventReceived++;
+							if(mPendingEvent.timestamp >= mEnabledTime) {
+								*data++ = mPendingEvent;
+								numEventReceived++;
+							}
 							count--;
 						}
 					}

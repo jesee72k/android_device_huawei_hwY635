@@ -1,0 +1,3 @@
+allow system_app log_device:chr_file { write open };
+allow system_app servicemanager:service_manager list;
+allow system_app service_manager_type:service_manager find;

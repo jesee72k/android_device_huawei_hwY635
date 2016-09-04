@@ -66,7 +66,7 @@ case "$baseband" in
         start ril-daemon2
     elif [ "$multisim" = "tsts" ]; then
         start ril-daemon2
-        start ril-daemon3
+#        start ril-daemon3
     fi
 
     case "$datamode" in

@@ -173,24 +173,24 @@
 /dev/tsc_ci0              0660   media       media
 
 /sys/devices/virtual/input/input* acc_fast_calibration_x     0660    system      input
-+/sys/devices/virtual/input/input* acc_fast_calibration_y    0660    system      input
-+/sys/devices/virtual/input/input* acc_fast_calibration_z    0660    system      input
-+/sys/devices/virtual/input/input* acc_offset_x              0660    system      input
-+/sys/devices/virtual/input/input* acc_offset_y              0660    system      input
-+/sys/devices/virtual/input/input* acc_offset_z              0660    system      input
-+/sys/devices/virtual/input/input* delay                     0660    system      input
-+/sys/devices/virtual/input/input* enable                    0660    system      input
-+/sys/devices/virtual/input/input* fifo_data_frame           0660    system      input
-+/sys/devices/virtual/input/input* fifo_data_sel             0660    system      input
-+/sys/devices/virtual/input/input* name                      0660    system      input
-+/sys/devices/virtual/input/input* place                     0660    system      input
-+/sys/devices/virtual/input/input* selftest                  0660    system      input
-+/sys/devices/virtual/input/input* temperature               0660    system      input
-+/sys/devices/virtual/input/input* test                      0660    system      input
-+/sys/devices/virtual/input/input* value                     0660    system      input
-+/sys/devices/virtual/input/input* op_mode                   0660    system      input
-+/sys/devices/virtual/input/input* rept_xy                   0660    system      input
-+/sys/devices/virtual/input/input* rept_z                    0660    system      input
+/sys/devices/virtual/input/input* acc_fast_calibration_y    0660    system      input
+/sys/devices/virtual/input/input* acc_fast_calibration_z    0660    system      input
+/sys/devices/virtual/input/input* acc_offset_x              0660    system      input
+/sys/devices/virtual/input/input* acc_offset_y              0660    system      input
+/sys/devices/virtual/input/input* acc_offset_z              0660    system      input
+/sys/devices/virtual/input/input* delay                     0660    system      input
+/sys/devices/virtual/input/input* enable                    0660    system      input
+/sys/devices/virtual/input/input* fifo_data_frame           0660    system      input
+/sys/devices/virtual/input/input* fifo_data_sel             0660    system      input
+/sys/devices/virtual/input/input* name                      0660    system      input
+/sys/devices/virtual/input/input* place                     0660    system      input
+/sys/devices/virtual/input/input* selftest                  0660    system      input
+/sys/devices/virtual/input/input* temperature               0660    system      input
+/sys/devices/virtual/input/input* test                      0660    system      input
+/sys/devices/virtual/input/input* value                     0660    system      input
+/sys/devices/virtual/input/input* op_mode                   0660    system      input
+/sys/devices/virtual/input/input* rept_xy                   0660    system      input
+/sys/devices/virtual/input/input* rept_z                    0660    system      input
 
 # sensors
 /sys/devices/i2c-12/12-*  			    pollrate_ms	   0664    system   system
@@ -208,6 +208,12 @@
 /sys/devices/soc.0/78b5000.i2c/i2c-1/1-*            max_latency    0660    input    system
 /sys/devices/soc.0/78b5000.i2c/i2c-1/1-*            flush          0660    input    system
 /sys/devices/soc.0/78b5000.i2c/i2c-1/1-*            calibrate      0660    input    system
+/sys/devices/soc.0/78b9000.i2c/i2c-5/5-*            enable         0660    input    system
+/sys/devices/soc.0/78b9000.i2c/i2c-5/5-*            poll_delay     0660    input    system
+/sys/devices/soc.0/78b9000.i2c/i2c-5/5-*            enable_wakeup  0660    input    system
+/sys/devices/soc.0/78b9000.i2c/i2c-5/5-*            max_latency    0660    input    system
+/sys/devices/soc.0/78b9000.i2c/i2c-5/5-*            flush          0660    input    system
+/sys/devices/soc.0/78b9000.i2c/i2c-5/5-*            calibrate      0660    input    system
 /sys/devices/virtual/optical_sensors/proximity      ps_adc         0660    input    system
 /sys/devices/virtual/optical_sensors/proximity      ps_poll_delay  0660    input    system
 /sys/devices/virtual/optical_sensors/lightsensor    ls_auto        0660    input    system
@@ -278,8 +284,12 @@
 /dev/i2c-6                0660   root       system
 
 # Compass
-/dev/akm09911             0660   compass    compass
-/dev/akm09911_dev         0660   compass    compass
+/dev/akm09911             0660   system     compass 
+/dev/akm09911_dev         0660   system     compass
 
 # Add device block for FRP
 /dev/block/platform/soc.0/7824900.sdhci/by-name/config    0660   system     system
+
+# power management
+/sys/module/intelli_plug/parameters	nr_run_profile_sel	0664 system system
+/sys/devices/system/cpu/cpu*   cpufreq/scaling_governor   0664  system system

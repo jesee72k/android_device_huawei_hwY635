@@ -1,0 +1,5 @@
+allow kernel camera_data_file:dir w_dir_perms;
+allow kernel camera_data_file:file create_file_perms;
+allow kernel untrusted_app_tmpfs:file write;
+allow kernel untrusted_app:process setsched;
+allow kernel platform_app:process setsched;

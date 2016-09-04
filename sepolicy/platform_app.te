@@ -1,0 +1,4 @@
+allow platform_app log_device:chr_file write;
+allow platform_app battery_service:service_manager find;
+allow platform_app healthd_service:service_manager find;
+

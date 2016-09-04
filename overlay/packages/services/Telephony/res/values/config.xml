@@ -27,14 +27,19 @@
     <!-- Some vendors don't want to allow non slot 0 to be set to default for calls/sms -->
     <bool name="config_hardcodeDefaultMobileNetworks">true</bool>
 
+    <!-- This device implements a noise suppression device for in call audio-->
+    <bool name="has_in_call_noise_suppression">true</bool>
+
     <!-- For this option to exist and work, the parameter name must be defined -->
     <string name="incall_echo_cancellation_parameter">fluence</string>
 
-    <!-- Paired with the above parameter, the below values will be used as enable/disable values for audiomanager.
-         "incall_echo_cancellation_parameter=incall_echo_cancellation_value" will be sent directly down into the
+    <!-- Paired with the above parameter, the below values will be used as enable/disable values for
+         "incall_echo_cancellation_parameter=incall_echo_cancellation_value" will be sent directly d
          HAL. Size of this array must be exactly 2. -->
     <string-array name="incall_echo_cancellation_values">
         <item>dualmic</item>
         <item>none</item>
     </string-array>
+
+
 </resources>

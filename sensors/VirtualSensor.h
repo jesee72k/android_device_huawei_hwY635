@@ -47,7 +47,6 @@ struct input_event;
 class VirtualSensor : public SensorBase {
 	sensors_event_t mLastEvent;
 	bool reportLastEvent;
-	bool mFirstEventReceived;
 	const SensorContext *context;
 	sensors_event_t mBuffer[MAX_EVENTS];
 	sensors_event_t* mRead;

@@ -1,0 +1,2 @@
+allow bluetooth log_device:chr_file write;
+allow bluetooth bluetooth:unix_stream_socket { IOCTLTEST };

@@ -1,5 +1,5 @@
 /*--------------------------------------------------------------------------
-Copyright (c) 2014, 2016, The Linux Foundation. All rights reserved.
+Copyright (c) 2014, The Linux Foundation. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -45,7 +45,6 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 VirtualSensor::VirtualSensor(const struct SensorContext *ctx)
 	: SensorBase(NULL, NULL, ctx),
 	  reportLastEvent(false),
-	  mFirstEventReceived(false),
 	  context(ctx),
 	  mRead(mBuffer),
 	  mWrite(mBuffer),
@@ -67,7 +66,6 @@ int VirtualSensor::enable(int32_t, int en) {
 
 	if (mEnabled != flag) {
 		mEnabled = flag;
-		mFirstEventReceived = false;
 		arg.enable = mEnabled;
 		if ((algo != NULL) && (algo->methods->config != NULL)) {
 			if (algo->methods->config(CMD_ENABLE, (sensor_algo_args*)&arg)) {
@@ -75,14 +73,14 @@ int VirtualSensor::enable(int32_t, int en) {
 			}
 		}
 	} else if (flag) {
-		reportLastEvent = mFirstEventReceived ? true : false;
+		reportLastEvent = true;
 	}
 
 	return 0;
 }
 
 bool VirtualSensor::hasPendingEvents() const {
-	return (mBufferEnd - mBuffer - mFreeSpace) || reportLastEvent || mHasPendingMetadata;
+	return (mBufferEnd - mBuffer - mFreeSpace) || reportLastEvent;
 }
 
 int VirtualSensor::readEvents(sensors_event_t* data, int count)
@@ -99,13 +97,6 @@ int VirtualSensor::readEvents(sensors_event_t* data, int count)
 		number++;
 	}
 
-	if (mHasPendingMetadata && count) {
-		*data++ = meta_data;
-		count--;
-		mHasPendingMetadata--;
-		number++;
-	}
-
 	while (count && (mBufferEnd - mBuffer - mFreeSpace)) {
 		*data++ = *mRead++;
 		if (mRead >= mBufferEnd)
@@ -113,8 +104,6 @@ int VirtualSensor::readEvents(sensors_event_t* data, int count)
 		number++;
 		mFreeSpace++;
 		count--;
-		if (!mFirstEventReceived)
-			mFirstEventReceived = true;
 	}
 
 	if (number > 0)
@@ -134,7 +123,7 @@ int VirtualSensor::injectEvents(sensors_event_t* data, int count)
 	for (i = 0; i < count; i++) {
 		event = data[i];
 		sensors_event_t out;
-		if (mFreeSpace && (event.type != SENSOR_TYPE_META_DATA)) {
+		if (mFreeSpace) {
 			if (algo->methods->convert(&event, &out, NULL))
 				continue;
 

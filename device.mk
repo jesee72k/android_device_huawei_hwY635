@@ -35,7 +35,8 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/prebuilts/audio_effects.conf:system/vendor/etc/audio_effects.conf \
     $(LOCAL_PATH)/prebuilts/audio_policy.conf:system/etc/audio_policy.conf \
     $(LOCAL_PATH)/prebuilts/mixer_paths.xml:system/etc/mixer_paths.xml \
-    $(LOCAL_PATH)/prebuilts/mixer_paths_qrd_skuh.xml:system/etc/mixer_paths_qrd_skuh.xml
+    $(LOCAL_PATH)/prebuilts/mixer_paths_qrd_skuh.xml:system/etc/mixer_paths_qrd_skuh.xml \
+    $(LOCAL_PATH)/prebuilts/sound_trigger_mixer_paths.xml:system/etc/sound_trigger_mixer_paths.xml
 
 # Feature definition files for msm8916
 PRODUCT_COPY_FILES += \
@@ -82,7 +83,6 @@ PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/wifi/WCNSS_qcom_wlan_nv.bin:system/etc/firmware/wlan/prima/WCNSS_qcom_wlan_nv.bin
 
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/prebuilts/init.qcom.bt.sh:system/etc/init.qcom.bt.sh \
     $(LOCAL_PATH)/prebuilts/init.qcom.zram.sh:system/etc/init.qcom.zram.sh
 
 # Screen density
@@ -100,11 +100,16 @@ PRODUCT_PACKAGES += \
     tinymix \
     libqcomvisualizer \
     libqcompostprocbundle \
+    libqcomvoiceprocessingdescriptors \
     libqcomvoiceprocessing
 
 # Camera
 PRODUCT_PACKAGES += \
     camera.msm8916 \
+    mm-qcamera-app \
+    libmm-omxcore \
+    libmmjpeg_interface \
+    libqomx_core \
     libstlport \
     libcurl \
     libhuawei_cutilz 
@@ -112,10 +117,6 @@ PRODUCT_PACKAGES += \
 # Snap Camera
 PRODUCT_PACKAGES += \
     Snap
-
-# Gello
-PRODUCT_PACKAGES += \
-    Gello
 
 # dataservices
 PRODUCT_PACKAGES += \
@@ -149,7 +150,6 @@ PRODUCT_PACKAGES += \
     libdivxdrmdecrypt \
     libOmxAacEnc \
     libOmxAmrEnc \
-    libmm-omxcore \
     libOmxCore \
     libOmxEvrcEnc \
     libOmxQcelp13Enc \
@@ -216,6 +216,10 @@ PRODUCT_PACKAGES += \
     FMRadio \
     libfmjni
 
+# Gello
+PRODUCT_PACKAGES += \
+    Gello
+
 # IPv6
 PRODUCT_PACKAGES += \
     ebtables \
@@ -246,6 +250,15 @@ PRODUCT_PACKAGES += \
     synaptics_dsx.kl \
     ft5x06_ts.kl \
     gpio-keys.kl
+
+# Keyhandler/Gestures
+PRODUCT_PACKAGES += \
+    com.cyanogenmod.keyhandler
+
+PRODUCT_SYSTEM_SERVER_JARS += com.cyanogenmod.keyhandler
+
+# never dexopt the keyhandler
+$(call add-product-dex-preopt-module-config,com.cyanogenmod.keyhandler,disable)
 
 # Art
 PRODUCT_PROPERTY_OVERRIDES += \

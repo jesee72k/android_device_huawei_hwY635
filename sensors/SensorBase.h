@@ -27,7 +27,6 @@
 #include <hardware/sensors.h>
 #include <CalibrationManager.h>
 #include <sensors_extension.h>
-#include <utils/SystemClock.h>
 
 /*****************************************************************************/
 
@@ -49,11 +48,9 @@ protected:
 	int input_sysfs_path_len;
 	int mEnabled;
 	int mHasPendingMetadata;
-	int64_t sysclk_sync_offset;
 
 	int openInput(const char* inputName);
 	static int64_t getTimestamp();
-	static int64_t getClkOffset();
 
 
 	static int64_t timevalToNano(timeval const& t) {
@@ -62,6 +59,9 @@ protected:
 
 	int open_device();
 	int close_device();
+	int write_int(char const *path, int value);
+	int write_sys_attribute(
+		char const *path, char const *value, int bytes);
 
 public:
 			SensorBase(const char* dev_name, const char* data_name,
@@ -74,10 +74,11 @@ public:
 	virtual bool hasPendingEvents() const;
 	virtual int getFd() const;
 	virtual int setDelay(int32_t handle, int64_t ns);
+	virtual int64_t getDelay(int32_t handle);
 	virtual int enable(int32_t handle, int enabled) = 0;
 	virtual int calibrate(int32_t handle, struct cal_cmd_t *para,
-					struct cal_result_t *cal_result);
-	virtual int initCalibrate(int32_t handle, struct cal_result_t *cal_result);
+					struct cal_result_t *outpara);
+	virtual int initCalibrate(int32_t handle, struct cal_result_t *prar);
 	virtual int setLatency(int32_t handle, int64_t ns);
 	virtual int flush(int32_t handle);
 };

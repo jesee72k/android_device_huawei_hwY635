@@ -14,11 +14,26 @@
 # limitations under the License.
 #
 
-LOCAL_PATH := $(call my-dir)
+ifneq ($(filter hwY635, $(TARGET_DEVICE)),)
+
+LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
-LOCAL_SRC_FILES := healthd_board_msm.cpp
-LOCAL_MODULE := libhealthd.msm
-LOCAL_CFLAGS := -Werror
-LOCAL_C_INCLUDES := system/core/healthd bootable/recovery
-include $(BUILD_STATIC_LIBRARY)
+
+LOCAL_SRC_FILES := \
+	voice_processing_descriptors.c
+
+LOCAL_C_INCLUDES += \
+	$(call include-path-for, audio-effects)
+
+LOCAL_MODULE := libqcomvoiceprocessingdescriptors
+
+LOCAL_32_BIT_ONLY := true
+
+LOCAL_MODULE_RELATIVE_PATH := soundfx
+
+LOCAL_MODULE_TAGS := optional
+
+include $(BUILD_SHARED_LIBRARY)
+
+endif
