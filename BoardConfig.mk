@@ -1,10 +1,11 @@
-# Copyright (C) 2011 The Android Open-Source Project
+#
+# Copyright (C) 2016 The CyanogenMod Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#      http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -34,6 +35,8 @@ TARGET_BOOTLOADER_BOARD_NAME := MSM8916
 
 # Architecture
 TARGET_ARCH := arm
+TARGET_GLOBAL_CFLAGS += -mfpu=neon -mfloat-abi=softfp
+TARGET_GLOBAL_CPPFLAGS += -mfpu=neon -mfloat-abi=softfp
 TARGET_CPU_ABI  := armeabi-v7a
 TARGET_CPU_ABI2 := armeabi
 TARGET_CPU_VARIANT := cortex-a53
@@ -68,7 +71,7 @@ BOARD_HARDWARE_CLASS := device/huawei/hwY635/cmhw
 # Enables CSVT
 TARGET_USES_CSVT := true
 
-# Enable suspend during charger mode
+# Charger
 BOARD_CHARGER_ENABLE_SUSPEND := true
 BOARD_CHARGER_SHOW_PERCENTAGE := true
 
@@ -116,7 +119,6 @@ BOARD_KERNEL_TAGS_OFFSET := 0x01E00000
 BOARD_RAMDISK_OFFSET     := 0x02000000
 TARGET_KERNEL_SOURCE := kernel/huawei/msm8916
 TARGET_KERNEL_CONFIG := cm_hwY635_defconfig
-TARGET_SELINUX_CONFIG := cm_hwY635_defconfig
 BOARD_CUSTOM_BOOTIMG_MK := $(LOCAL_PATH)/mkbootimg.mk
 
 # Partitions

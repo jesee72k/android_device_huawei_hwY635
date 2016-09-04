@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015 The CyanogenMod Project
+# Copyright (C) 2016 The CyanogenMod Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,25 +20,24 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 
 DEVICE_PACKAGE_OVERLAYS := $(LOCAL_PATH)/overlay
 
+
 # Audio calibration
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/audio/Bluetooth_cal.acdb:system/etc/sound_param/g620s_l01l02/Bluetooth_cal.acdb \
-    $(LOCAL_PATH)/audio/General_cal.acdb:system/etc/sound_param/g620s_l01l02/General_cal.acdb \
-    $(LOCAL_PATH)/audio/Global_cal.acdb:system/etc/sound_param/g620s_l01l02/Global_cal.acdb \
-    $(LOCAL_PATH)/audio/Handset_cal.acdb:system/etc/sound_param/g620s_l01l02/Handset_cal.acdb \
-    $(LOCAL_PATH)/audio/Hdmi_cal.acdb:system/etc/sound_param/g620s_l01l02/Hdmi_cal.acdb \
-    $(LOCAL_PATH)/audio/Headset_cal.acdb:system/etc/sound_param/g620s_l01l02/Headset_cal.acdb \
-    $(LOCAL_PATH)/audio/Speaker_cal.acdb:system/etc/sound_param/g620s_l01l02/Speaker_cal.acdb
+    $(LOCAL_PATH)/audio/Bluetooth_cal.acdb:system/etc/Bluetooth_cal.acdb \
+    $(LOCAL_PATH)/audio/General_cal.acdb:system/etc/General_cal.acdb \
+    $(LOCAL_PATH)/audio/Global_cal.acdb:system/etc/Global_cal.acdb \
+    $(LOCAL_PATH)/audio/Handset_cal.acdb:system/etc/Handset_cal.acdb \
+    $(LOCAL_PATH)/audio/Hdmi_cal.acdb:system/etc/Hdmi_cal.acdb \
+    $(LOCAL_PATH)/audio/Headset_cal.acdb:system/etc/Headset_cal.acdb \
+$(LOCAL_PATH)/audio/Speaker_cal.acdb:system/etc/Speaker_cal.acdb
 
 # media_profiles and media_codecs xmls for 8916
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/prebuilts/media_codecs.xml:system/etc/media_codecs.xml \
-    $(LOCAL_PATH)/prebuilts/media_profiles.xml:system/etc/media_profiles.xml
-
-PRODUCT_COPY_FILES += \
     frameworks/av/media/libstagefright/data/media_codecs_google_audio.xml:system/etc/media_codecs_google_audio.xml \
     frameworks/av/media/libstagefright/data/media_codecs_google_telephony.xml:system/etc/media_codecs_google_telephony.xml \
-    frameworks/av/media/libstagefright/data/media_codecs_google_video.xml:system/etc/media_codecs_google_video.xml
+    frameworks/av/media/libstagefright/data/media_codecs_google_video.xml:system/etc/media_codecs_google_video.xml \
+    $(LOCAL_PATH)/prebuilts/media_codecs.xml:system/etc/media_codecs.xml \
+    $(LOCAL_PATH)/prebuilts/media_profiles.xml:system/etc/media_profiles.xml
 
 # Audio configuration file
 PRODUCT_COPY_FILES += \
@@ -124,7 +123,6 @@ PRODUCT_PACKAGES += \
     camera.msm8916 \
     mm-qcamera-app \
     libmmjpeg_interface \
-    libmm-omxcore \
     libqomx_core
 
 # Snap Camera
@@ -185,12 +183,17 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     libOmxAacEnc \
     libOmxAmrEnc \
-    libOmxCore \
     libOmxEvrcEnc \
     libOmxQcelp13Enc \
-    libOmxVdec \
-    libOmxVenc \
+    libmm-omxcore \
+    libOmxCore \
     libdivxdrmdecrypt \
+    libOmxSwVencMpeg4 \
+    libOmxVdec \
+    libOmxVdecHevc \
+    libOmxVdpp \
+    libOmxVenc \
+    libOmxVidEnc \
     libstagefrighthw \
     libdashplayer \
     qcmediaplayer
