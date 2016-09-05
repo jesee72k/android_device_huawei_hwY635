@@ -75,6 +75,8 @@ TARGET_USES_CSVT := true
 # Charger
 BOARD_CHARGER_ENABLE_SUSPEND := true
 BOARD_CHARGER_SHOW_PERCENTAGE := true
+BOARD_CHARGER_DISABLE_INIT_BLANK := true
+BOARD_HAL_STATIC_LIBRARIES += libhealthd.qcom
 
 #Enable HW based full disk encryption
 TARGET_HW_DISK_ENCRYPTION := true
