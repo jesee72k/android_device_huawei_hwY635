@@ -1047,8 +1047,15 @@ service diag_mdlog_stop /system/bin/diag_mdlog -k
     disabled
     oneshot
 
+service bms-sh /system/bin/sh /init.qcom.bms.sh
+    class main
+    user root
+    oneshot
+
 service vm_bms /system/bin/vm_bms
-    class core
+    user root
+    group root
+    disabled
 
 service wfdservice /system/bin/wfdservice
     class main
